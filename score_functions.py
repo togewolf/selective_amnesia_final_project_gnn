@@ -1,0 +1,1 @@
+# todo: FID, CLIP, CMMD, research for better options
