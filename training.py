@@ -1,0 +1,1 @@
+# todo training pipeline for MNIST, for each model
