@@ -102,13 +102,22 @@ if __name__ == "__main__":
         forgotten_model.load_state_dict(torch.load(forget_path, map_location=device))
 
         # 1. Evaluate Accuracy Before and After
-        _, before_c_accs = evaluate_accuracy(base_model, oracle, device, num_samples=100)
-        _, after_c_accs = evaluate_accuracy(forgotten_model, oracle, device, num_samples=100)
+        _, before_c_accs = evaluate_accuracy(base_model, oracle, device, num_samples=1000)
+        _, after_c_accs = evaluate_accuracy(forgotten_model, oracle, device, num_samples=1000)
 
         # 2. Generate Image Grids
         with torch.no_grad():
+            seed = 42
+            # Setting the seed ensures torch.randn inside generate() produces
+            # the exact same latent vectors (z) for the base model.
+            torch.manual_seed(seed)
             base_imgs = base_model.generate(grid_y) * 0.5 + 0.5
+
+            # Resetting the same seed ensures the forgotten model receives
+            # the EXACT same latent vectors as the base model.
+            torch.manual_seed(seed)
             forget_imgs = forgotten_model.generate(grid_y) * 0.5 + 0.5
+
             save_image(base_imgs, f"evaluation_data/{name}_base_grid.png", nrow=10)
             save_image(forget_imgs, f"evaluation_data/{name}_forgot_{TARGET_CLASS_FORGOTTEN}_grid.png", nrow=10)
 

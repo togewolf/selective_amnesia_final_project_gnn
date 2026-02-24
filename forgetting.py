@@ -3,9 +3,9 @@ import torch
 import copy
 from tqdm import tqdm
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader  # todo Not really needed here, remove
 
-from models.variational_autoencoder.variational_autoencoder import ConditionalVAE
+from models.variational_autoencoder.variational_autoencoder import ConditionalVAE, compute_fisher_dict
 from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
 
 # Define the models you want to apply forgetting to
@@ -17,7 +17,7 @@ models_dict = {
 TARGET_CLASS_TO_FORGET = 0
 
 
-def forget_class(model, target_class, dataloader, epochs, device):
+def forget_class(model, target_class, dataloader, epochs, device, fisher_dict=None):
     """
     Common selective amnesia pipeline. Modifies a model so it forgets how to generate a target class
     while preserving its ability to generate the remaining classes.
@@ -28,6 +28,9 @@ def forget_class(model, target_class, dataloader, epochs, device):
         dataloader (DataLoader): PyTorch DataLoader providing the training data.
         epochs (int): Number of fine-tuning epochs to induce amnesia.
         device (torch.device): The device (CPU/GPU) to run training on.
+        fisher_dict (dict, optional): A dictionary containing the Fisher Information Matrix for the
+                                      model's parameters. Required for VAEs using Elastic Weight
+                                      Consolidation (EWC) to protect retained classes. Defaults to None.
 
     Returns:
         model (nn.Module): The model updated with selective amnesia.
@@ -47,7 +50,12 @@ def forget_class(model, target_class, dataloader, epochs, device):
 
         for x, _ in progress_bar:
             batch_size = x.size(0)
-            model.forget_step(batch_size, target_class, frozen_model)
+            # Conditionally pass fisher_dict to models that support it
+            if fisher_dict is not None:
+                model.forget_step(batch_size, target_class, frozen_model, fisher_dict=fisher_dict)
+            else:
+                # Fallback for models like GANs that might not use EWC in their forget_step
+                model.forget_step(batch_size, target_class, frozen_model)
 
     return model
 
@@ -76,13 +84,18 @@ if __name__ == "__main__":
             print(f"\n--- Loading {name} base model for Forgetting Process ---")
             model.load_state_dict(torch.load(base_path, map_location=device))
 
+            fisher_dict = None
+            if name == "VAE":
+                fisher_dict = compute_fisher_dict(model, loader, device)
+
             # Apply selective amnesia
             forgotten_model = forget_class(
                 model=model,
                 target_class=TARGET_CLASS_TO_FORGET,
                 dataloader=loader,
-                epochs=5,  # todo specific number of epochs optimal for each model?
-                device=device
+                epochs=3,  # todo specific number of epochs optimal for each model?
+                device=device,
+                fisher_dict=fisher_dict
             )
 
             # Save the new state

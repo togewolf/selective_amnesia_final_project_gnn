@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 
 
 class ConditionalVAE(nn.Module):
@@ -143,7 +144,7 @@ class ConditionalVAE(nn.Module):
 
         return {"vae_loss": loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=1.0, lmbda=0.1, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict, gamma=1.0, lmbda=0.1, device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -161,6 +162,8 @@ class ConditionalVAE(nn.Module):
             lmbda (float): Weight for the Elastic Weight Consolidation penalty.
             device (torch.device, optional): Device to run on.
 
+            Note that this does not use the original dataset, only the model.
+
         Returns:
             dict: {"vae_forget_loss": float}
         """
@@ -170,24 +173,18 @@ class ConditionalVAE(nn.Module):
         self.optimizer.zero_grad()
 
         # --- 1. Corrupting Phase ---
-        # Push the target class to reconstruct uniform random noise
+        # Generate target class labels
         c_forget = torch.full((batch_size,), target_class, dtype=torch.long, device=device)
-        c_forget_oh = F.one_hot(c_forget, num_classes=self.class_size).float()
 
-        # Sample latent codes
-        z_f = torch.randn(batch_size, self.z_dim, device=device)
+        # True uniform noise target (4D to match what forward expects before flattening)
+        noise_target = torch.rand(batch_size, 1, 28, 28, device=device)
 
-        # True uniform noise target (independent of forward())
-        noise_target = torch.rand(batch_size, self.x_dim, device=device)
+        # Pass through full VAE (Encoder + Sampling + Decoder)
+        recon_forget, mu_f, log_var_f, target_f_flat = self.forward(noise_target, c_forget)
 
-        # Decode with current model
-        recon_forget = self.decoder(z_f, c_forget_oh)
-
-        loss = F.binary_cross_entropy(
-            recon_forget,
-            noise_target,
-            reduction="sum",
-        ) / batch_size
+        loss_recon_f = F.binary_cross_entropy(recon_forget, target_f_flat, reduction="sum")
+        loss_kl_f = -0.5 * torch.sum(1 + log_var_f - mu_f.pow(2) - log_var_f.exp())
+        loss = loss_recon_f + loss_kl_f
 
         # --- 2. Contrastive Phase (Generative Replay) ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
@@ -200,28 +197,25 @@ class ConditionalVAE(nn.Module):
         z_r = torch.randn(batch_size, self.z_dim, device=device)
 
         with torch.no_grad():
-            replay_target = frozen_model.decoder(z_r, c_remember_oh)
+            # Frozen model generates replay targets
+            replay_target_flat = frozen_model.decoder(z_r, c_remember_oh)
+            replay_target = replay_target_flat.view(-1, 1, 28, 28)
 
-        replay_recon = self.decoder(z_r, c_remember_oh)
+        # Pass replay target through full VAE
+        recon_replay, mu_r, log_var_r, target_r_flat = self.forward(replay_target, c_remember)
 
-        replay_loss = F.binary_cross_entropy(
-            replay_recon,
-            replay_target,
-            reduction="sum",
-        ) / batch_size
+        loss_recon_r = F.binary_cross_entropy(recon_replay, target_r_flat, reduction="sum")
+        loss_kl_r = -0.5 * torch.sum(1 + log_var_r - mu_r.pow(2) - log_var_r.exp())
+        loss += gamma * (loss_recon_r + loss_kl_r)
 
-        loss = loss + gamma * replay_loss
-
-        # --- 3. Weight Consolidation Proxy ---
-        if lmbda > 0:
-            l2_loss = 0.0
-            n_params = 0
-
-            for p, p_frozen in zip(self.parameters(), frozen_model.parameters()):
-                l2_loss += (p - p_frozen).pow(2).sum()
-                n_params += p.numel()
-
-            loss = loss + lmbda * (l2_loss / n_params)
+        # --- 3. Elastic Weight Consolidation (EWC) ---
+        if lmbda > 0 and fisher_dict is not None:
+            ewc_loss = 0.0
+            for (name, p), (name_frozen, p_frozen) in zip(self.named_parameters(), frozen_model.named_parameters()):
+                if name in fisher_dict:
+                    fisher_val = fisher_dict[name].to(device)
+                    ewc_loss += (fisher_val * (p - p_frozen).pow(2)).sum()
+            loss += lmbda * ewc_loss
 
         loss.backward()
         self.optimizer.step()
@@ -251,6 +245,58 @@ class ConditionalVAE(nn.Module):
         # Map back to [-1, 1] to maintain compatibility with the pipeline's expectations
         return (generated_images * 2.0) - 1.0
 
+
+def compute_fisher_dict(model, dataloader, device):
+    """
+    Computes the empirical Fisher Information Matrix diagonal for Elastic Weight Consolidation (EWC).
+
+    This matrix estimates the importance of each model parameter with respect to the original
+    training data distribution. During the amnesia phase, EWC uses this matrix to heavily penalize
+    changes to the specific weights that are crucial for generating the classes we want to retain,
+    preventing catastrophic forgetting.
+
+    Args:
+        model (torch.nn.Module): The pre-trained generative model (e.g., ConditionalVAE) whose
+                                 parameters will be evaluated.
+        dataloader (torch.utils.data.DataLoader): The DataLoader providing the original training data.
+                                                  We iterate through this to get the gradients.
+        device (torch.device): The computation device (CPU or GPU) to run the calculations on.
+
+    Returns:
+        dict: A dictionary mapping parameter names (strings) to their corresponding Fisher Information
+              tensors. These tensors have the exact same shape as the parameters themselves.
+    """
+    print("Computing Fisher Information Matrix...")
+    model.to(device)
+
+    fisher_dict = {}
+    for name, param in model.named_parameters():
+        fisher_dict[name] = torch.zeros_like(param.data)
+
+    model.eval()
+
+    for x, y in tqdm(dataloader, desc="Calculating Fisher"):
+        x, y = x.to(device), y.to(device)
+        model.zero_grad()
+
+        # Standard VAE forward pass
+        recon_x, mu, logvar, target_x = model.forward(x, y)
+
+        # Calculate loss (BCE + KLD)
+        loss_recon = F.binary_cross_entropy(recon_x, target_x, reduction='sum')
+        loss_kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        loss = (loss_recon + loss_kl) / x.size(0)
+
+        # Backpropagate to get gradients
+        loss.backward()
+
+        # Accumulate squared gradients
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                # Average over the number of batches
+                fisher_dict[name] += param.grad.data.pow(2) / len(dataloader)
+
+    return fisher_dict
 
 """ Class from paper's github for reference:
 class OneHotCVAE(nn.Module):

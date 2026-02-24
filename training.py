@@ -68,7 +68,7 @@ if __name__ == "__main__":
         if name in models_dict:
             print(f"\n--- Starting Normal Training for {name} ---")
             model = models_dict[name]
-            trained_model = train_model(model, loader, epochs=20, device=device)
+            trained_model = train_model(model, loader, epochs=30, device=device)
 
             save_path = f"models/saved_weights/{name.lower()}_base.pth"
             torch.save(trained_model.state_dict(), save_path)
