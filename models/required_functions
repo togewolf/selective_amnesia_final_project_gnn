@@ -1,0 +1,12 @@
+Models must implement:
+
+train_step(x, y)
+
+
+forget_step(batch_size, target_class, frozen_model)
+
+
+generate(y)  where y is (torch.Tensor): Batch of desired class labels. Shape: (Batch,), e.g.:
+Ask the generator to create `num_samples` images of class `c`
+y_target = torch.full((num_samples,), c, dtype=torch.long, device=device)
+generated_images = model.generate(y_target)

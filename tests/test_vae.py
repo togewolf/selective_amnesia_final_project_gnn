@@ -1,1 +1,0 @@
-# Todo testcase for VAE model on MNIST

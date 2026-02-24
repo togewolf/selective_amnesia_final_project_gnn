@@ -1,3 +1,11 @@
+evaluation_data/*
+!evaluation_data/.gitkeep
+models/saved_weights/
+data/
+models/oracle.pth
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
