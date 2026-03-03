@@ -12,14 +12,19 @@ from torchvision.utils import save_image
 from models.variational_autoencoder.variational_autoencoder import ConditionalVAE
 from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
 from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
+from models.rectified_flows.rectified_flows import ConditionalRectifiedFlow
+from models.autoregressive.autoregressive_model import ConditionalMADE
+
 from scoring import get_oracle, evaluate_accuracy
 
 # Define the models you want to evaluate
-ACTIVE_MODELS = ["NVP"]
+ACTIVE_MODELS = ["VAE"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
     "NVP": ConditionalRealNVP()
+    "RectifiedFlow": ConditionalRectifiedFlow(),
+    "Autoregressive": ConditionalMADE(),
     # todo: add further models here
 }
 TARGET_CLASS_FORGOTTEN = 0
@@ -90,9 +95,13 @@ if __name__ == "__main__":
         if name == "VAE":
             forgotten_model = ConditionalVAE().to(device)
         elif name == "GAN":
-            forgotten_model = ConditionalGAN().to(device)
+            forgotten_model = ConditionalGAN(latent_dim=100, num_classes=10).to(device)
         elif name == "NVP":
             forgotten_model = ConditionalRealNVP().to(device)
+        elif name == "RectifiedFlow":
+            forgotten_model = ConditionalRectifiedFlow().to(device)
+        elif name == "Autoregressive":
+            forgotten_model = ConditionalMADE().to(device)
 
         base_path = f"models/saved_weights/{name.lower()}_base.pth"
         forget_path = f"models/saved_weights/{name.lower()}_forgot_{TARGET_CLASS_FORGOTTEN}.pth"

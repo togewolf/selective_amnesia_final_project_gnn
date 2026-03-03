@@ -8,15 +8,30 @@ from torch.utils.data import DataLoader  # todo Not really needed here, remove
 from models.variational_autoencoder.variational_autoencoder import ConditionalVAE, compute_fisher_dict
 from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
 from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
+from models.rectified_flows.rectified_flows import ConditionalRectifiedFlow
+from models.rectified_flows.rectified_flows import compute_fisher_dict as compute_fisher_rf
+from models.autoregressive.autoregressive_model import ConditionalMADE
+from models.autoregressive.autoregressive_model import compute_fisher_dict as compute_fisher_ar
 
 # Define the models you want to apply forgetting to
-ACTIVE_MODELS = ["NVP"]
+ACTIVE_MODELS = ["VAE"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
     "NVP": ConditionalRealNVP()
+    "GAN": ConditionalGAN(),
+    "RectifiedFlow": ConditionalRectifiedFlow(),
+    "Autoregressive": ConditionalMADE(),
 }
 TARGET_CLASS_TO_FORGET = 0
+
+# Forgetting epochs per model (GPU makes autoregressive replay feasible at 3 epochs)
+FORGET_EPOCHS = {
+    "VAE": 3,
+    "GAN": 3,
+    "RectifiedFlow": 3,
+    "Autoregressive": 3,
+}
 
 
 def forget_class(model, target_class, dataloader, epochs, device, fisher_dict=None):
@@ -89,13 +104,18 @@ if __name__ == "__main__":
             fisher_dict = None
             if name in ["VAE", "NVP"]:
                 fisher_dict = compute_fisher_dict(model, loader, device)
+            elif name == "RectifiedFlow":
+                fisher_dict = compute_fisher_rf(model, loader, device)
+            elif name == "Autoregressive":
+                fisher_dict = compute_fisher_ar(model, loader, device)
 
             # Apply selective amnesia
+            forget_epochs = FORGET_EPOCHS.get(name, 3)
             forgotten_model = forget_class(
                 model=model,
                 target_class=TARGET_CLASS_TO_FORGET,
                 dataloader=loader,
-                epochs=4, 
+                epochs=forget_epochs,
                 device=device,
                 fisher_dict=fisher_dict
             )
