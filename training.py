@@ -6,12 +6,14 @@ from torch.utils.data import DataLoader
 
 from models.variational_autoencoder.variational_autoencoder import ConditionalVAE
 from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
+from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
 
 # Define the models you want to train here.
-ACTIVE_MODELS = ["VAE"]
+ACTIVE_MODELS = ["NVP"]
 models_dict = {
     "VAE": ConditionalVAE(),
-    "GAN": ConditionalGAN()
+    "GAN": ConditionalGAN(),
+    "NVP": ConditionalRealNVP()
     # todo: add further models here
 }
 
@@ -68,7 +70,7 @@ if __name__ == "__main__":
         if name in models_dict:
             print(f"\n--- Starting Normal Training for {name} ---")
             model = models_dict[name]
-            trained_model = train_model(model, loader, epochs=30, device=device)
+            trained_model = train_model(model, loader, epochs=10, device=device)
 
             save_path = f"models/saved_weights/{name.lower()}_base.pth"
             torch.save(trained_model.state_dict(), save_path)

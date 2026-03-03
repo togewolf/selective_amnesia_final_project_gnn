@@ -7,12 +7,14 @@ from torch.utils.data import DataLoader  # todo Not really needed here, remove
 
 from models.variational_autoencoder.variational_autoencoder import ConditionalVAE, compute_fisher_dict
 from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
+from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
 
 # Define the models you want to apply forgetting to
-ACTIVE_MODELS = ["VAE"]
+ACTIVE_MODELS = ["NVP"]
 models_dict = {
     "VAE": ConditionalVAE(),
-    "GAN": ConditionalGAN()
+    "GAN": ConditionalGAN(),
+    "NVP": ConditionalRealNVP()
 }
 TARGET_CLASS_TO_FORGET = 0
 
@@ -85,7 +87,7 @@ if __name__ == "__main__":
             model.load_state_dict(torch.load(base_path, map_location=device))
 
             fisher_dict = None
-            if name == "VAE":
+            if name in ["VAE", "NVP"]:
                 fisher_dict = compute_fisher_dict(model, loader, device)
 
             # Apply selective amnesia
@@ -93,7 +95,7 @@ if __name__ == "__main__":
                 model=model,
                 target_class=TARGET_CLASS_TO_FORGET,
                 dataloader=loader,
-                epochs=3,  # todo specific number of epochs optimal for each model?
+                epochs=4, 
                 device=device,
                 fisher_dict=fisher_dict
             )
