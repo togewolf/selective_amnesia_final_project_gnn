@@ -18,8 +18,7 @@ ACTIVE_MODELS = ["VAE"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
-    "NVP": ConditionalRealNVP()
-    "GAN": ConditionalGAN(),
+    "NVP": ConditionalRealNVP(),
     "RectifiedFlow": ConditionalRectifiedFlow(),
     "Autoregressive": ConditionalMADE(),
 }
@@ -31,6 +30,7 @@ FORGET_EPOCHS = {
     "GAN": 3,
     "RectifiedFlow": 3,
     "Autoregressive": 3,
+    "NVP": 3,
 }
 
 

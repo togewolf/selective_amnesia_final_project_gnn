@@ -17,7 +17,6 @@ models_dict = {
     "GAN": ConditionalGAN(),
     "RectifiedFlow": ConditionalRectifiedFlow(),
     "Autoregressive": ConditionalMADE(),
-    "GAN": ConditionalGAN(),
     "NVP": ConditionalRealNVP()
 }
 

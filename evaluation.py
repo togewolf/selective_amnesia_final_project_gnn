@@ -22,10 +22,9 @@ ACTIVE_MODELS = ["VAE"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
-    "NVP": ConditionalRealNVP()
+    "NVP": ConditionalRealNVP(),
     "RectifiedFlow": ConditionalRectifiedFlow(),
     "Autoregressive": ConditionalMADE(),
-    # todo: add further models here
 }
 TARGET_CLASS_FORGOTTEN = 0
 
