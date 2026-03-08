@@ -14,7 +14,9 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 from models.autoregressive.autoregressive_model import compute_fisher_dict as compute_fisher_ar
 
 # Define the models you want to apply forgetting to
-ACTIVE_MODELS = ["VAE"]
+ACTIVE_MODELS = ["GAN"]
+GAMMA = 0.5
+
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
@@ -27,7 +29,7 @@ TARGET_CLASS_TO_FORGET = 0
 # Forgetting epochs per model (GPU makes autoregressive replay feasible at 3 epochs)
 FORGET_EPOCHS = {
     "VAE": 3,
-    "GAN": 3,
+    "GAN": 15,
     "RectifiedFlow": 3,
     "Autoregressive": 3,
     "NVP": 3,
@@ -69,10 +71,10 @@ def forget_class(model, target_class, dataloader, epochs, device, fisher_dict=No
             batch_size = x.size(0)
             # Conditionally pass fisher_dict to models that support it
             if fisher_dict is not None:
-                model.forget_step(batch_size, target_class, frozen_model, fisher_dict=fisher_dict)
+                model.forget_step(batch_size, target_class, frozen_model, fisher_dict=fisher_dict, gamma=GAMMA)
             else:
                 # Fallback for models like GANs that might not use EWC in their forget_step
-                model.forget_step(batch_size, target_class, frozen_model)
+                model.forget_step(batch_size, target_class, frozen_model, gamma=GAMMA)
 
     return model
 

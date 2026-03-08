@@ -18,7 +18,7 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 from scoring import get_oracle, evaluate_accuracy
 
 # Define the models you want to evaluate
-ACTIVE_MODELS = ["VAE"]
+ACTIVE_MODELS = ["GAN"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),

@@ -11,7 +11,7 @@ from models.rectified_flows.rectified_flows import ConditionalRectifiedFlow
 from models.autoregressive.autoregressive_model import ConditionalMADE
 
 # Define the models you want to train here.
-ACTIVE_MODELS = ["VAE"]
+ACTIVE_MODELS = ["GAN"]
 models_dict = {
     "VAE": ConditionalVAE(),
     "GAN": ConditionalGAN(),
