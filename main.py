@@ -1,5 +1,3 @@
-# Doesn't do anything important
-
 import torch
 
 

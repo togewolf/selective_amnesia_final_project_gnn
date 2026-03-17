@@ -37,7 +37,7 @@ class TestOracleAccuracy(unittest.TestCase):
         """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        oracle_path = "models/saved_weights/oracle.pth"
+        oracle_path = "models/weights/oracle.pth"
 
         # 1. Ensure the oracle weights actually exist before proceeding
         self.assertTrue(

@@ -58,9 +58,9 @@ class ConditionalRectifiedFlow(nn.Module):
         # Input projection: (x_t, t_embed, one_hot_c) -> h_dim
         self.input_proj = nn.Linear(x_dim + t_dim + class_size, h_dim)
 
-        # 4 residual blocks for deep feature extraction
+        # 8 residual blocks for deep feature extraction
         self.res_blocks = nn.ModuleList([
-            ResidualBlock(h_dim) for _ in range(4)
+            ResidualBlock(h_dim) for _ in range(8)
         ])
 
         # Output projection: h_dim -> x_dim
@@ -178,7 +178,7 @@ class ConditionalRectifiedFlow(nn.Module):
         # Map to [-1, 1] for pipeline compatibility
         return images * 2.0 - 1.0
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="mse", device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -216,7 +216,11 @@ class ConditionalRectifiedFlow(nn.Module):
         target_v = x_surrogate - z
         pred_v = self.velocity(x_t, t, c_forget_oh)
 
-        loss = F.mse_loss(pred_v, target_v, reduction='sum')
+        # Dynamic Loss Type Selection
+        if loss_type == "mse":
+            loss = F.mse_loss(pred_v, target_v, reduction='sum')
+        elif loss_type == "l1":
+            loss = F.l1_loss(pred_v, target_v, reduction='sum')
 
         # --- 2. Generative Replay ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
@@ -242,7 +246,10 @@ class ConditionalRectifiedFlow(nn.Module):
         target_v_r = x_replay - z_r
         pred_v_r = self.velocity(x_t_r, t_r, c_remember_oh)
 
-        loss += gamma * F.mse_loss(pred_v_r, target_v_r, reduction='sum')
+        if loss_type == "mse":
+            loss += gamma * F.mse_loss(pred_v_r, target_v_r, reduction='sum')
+        elif loss_type == "l1":
+            loss += gamma * F.l1_loss(pred_v_r, target_v_r, reduction='sum')
 
         # --- 3. Elastic Weight Consolidation ---
         if lmbda > 0 and fisher_dict is not None:

@@ -4,7 +4,9 @@ models/saved_weights/
 data/
 models/oracle.pth
 
-
+*.pth
+*.pt
+*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

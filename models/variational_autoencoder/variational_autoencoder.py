@@ -144,7 +144,7 @@ class ConditionalVAE(nn.Module):
 
         return {"vae_loss": loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict, gamma=1.0, lmbda=0.1, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict, gamma=1.0, lmbda=0.1, loss_type="mse", device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -182,7 +182,14 @@ class ConditionalVAE(nn.Module):
         # Pass through full VAE (Encoder + Sampling + Decoder)
         recon_forget, mu_f, log_var_f, target_f_flat = self.forward(noise_target, c_forget)
 
-        loss_recon_f = F.binary_cross_entropy(recon_forget, target_f_flat, reduction="sum")
+        # Dynamic Loss Type Selection
+        if loss_type == "bce":
+            loss_recon_f = F.binary_cross_entropy(recon_forget, target_f_flat, reduction="sum")
+        elif loss_type == "mse":
+            loss_recon_f = F.mse_loss(recon_forget, target_f_flat, reduction="sum")
+        elif loss_type == "l1":
+            loss_recon_f = F.l1_loss(recon_forget, target_f_flat, reduction="sum")
+            
         loss_kl_f = -0.5 * torch.sum(1 + log_var_f - mu_f.pow(2) - log_var_f.exp())
         loss = loss_recon_f + loss_kl_f
 
@@ -204,7 +211,14 @@ class ConditionalVAE(nn.Module):
         # Pass replay target through full VAE
         recon_replay, mu_r, log_var_r, target_r_flat = self.forward(replay_target, c_remember)
 
-        loss_recon_r = F.binary_cross_entropy(recon_replay, target_r_flat, reduction="sum")
+        # Match the replay loss to the corruption loss type
+        if loss_type == "bce":
+            loss_recon_r = F.binary_cross_entropy(recon_replay, target_r_flat, reduction="sum")
+        elif loss_type == "mse":
+            loss_recon_r = F.mse_loss(recon_replay, target_r_flat, reduction="sum")
+        elif loss_type == "l1":
+            loss_recon_r = F.l1_loss(recon_replay, target_r_flat, reduction="sum")
+
         loss_kl_r = -0.5 * torch.sum(1 + log_var_r - mu_r.pow(2) - log_var_r.exp())
         loss += gamma * (loss_recon_r + loss_kl_r)
 

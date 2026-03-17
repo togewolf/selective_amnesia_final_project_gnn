@@ -241,7 +241,7 @@ class ConditionalRealNVP(nn.Module):
 
         return {"vae_loss": vae_loss.item(), "nf_loss": nf_loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="nll", device=None):
         """
         Executes one optimization step to induce Selective Amnesia strictly within
         the Flow's latent mappings, perfectly preserving the underlying VAE mappings.
@@ -259,15 +259,20 @@ class ConditionalRealNVP(nn.Module):
 
         self.optimizer.zero_grad()
 
-        # --- 1. Corrupting Phase ---
         c_target = torch.full((batch_size,), target_class, dtype=torch.long, device=device)
         c_target_oh = F.one_hot(c_target, num_classes=self.class_size).float()
-
-        # Uniform noise spanning roughly the valid domain of a Gaussian [-3, 3]
-        # This erases all meaningful geometric distribution clustering for the forgotten class.
         z_noise = (torch.rand(batch_size, self.z_dim, device=device) * 6) - 3.0
-        log_prob_corrupt = self.log_prob(z_noise, c_target_oh)
-        loss_corrupt = -log_prob_corrupt.mean()
+        
+        if loss_type == "nll":
+            # Standard: Maximize likelihood of noise
+            log_prob_corrupt = self.log_prob(z_noise, c_target_oh)
+            loss_corrupt = -log_prob_corrupt.mean()
+        elif loss_type == "mse":
+            # Alternative: Force the inverse pass to output the noise vector
+            # (Requires your model to have a forward pass method to get z_pred)
+            z_pred, _ = self.nf_inverse(z_noise, c_target_oh) # Pass noise BACKWARDS
+            # We want the mapping to just be identity to the noise
+            loss_corrupt = F.mse_loss(z_pred, z_noise)
 
         # --- 2. Contrastive Phase (Generative Replay) ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
@@ -279,6 +284,14 @@ class ConditionalRealNVP(nn.Module):
         with torch.no_grad():
             w = torch.randn(batch_size, self.z_dim, device=device)
             z_replay, _ = frozen_model.nf_inverse(w, c_replay_oh)
+
+        if loss_type == "nll":
+            log_prob_replay = self.log_prob(z_replay, c_replay_oh)
+            loss_replay = -log_prob_replay.mean()
+        elif loss_type == "mse":
+            # Force the current model to map noise exactly to the frozen replay latent
+            z_current, _ = self.nf_inverse(w, c_replay_oh)
+            loss_replay = F.mse_loss(z_current, z_replay)
 
         log_prob_replay = self.log_prob(z_replay, c_replay_oh)
         loss_replay = -log_prob_replay.mean()

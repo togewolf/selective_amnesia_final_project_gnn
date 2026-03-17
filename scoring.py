@@ -47,8 +47,8 @@ def get_oracle(device, dataloader=None, epochs=2):
     Returns:
         oracle (MNISTOracle): The trained and frozen oracle model.
     """
-    os.makedirs("models/saved_weights", exist_ok=True)
-    oracle_path = "models/saved_weights/oracle.pth"
+    os.makedirs("models/weights", exist_ok=True)
+    oracle_path = "models/weights/oracle.pth"
     oracle = MNISTOracle().to(device)
 
     if os.path.exists(oracle_path):

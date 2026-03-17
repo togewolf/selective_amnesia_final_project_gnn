@@ -32,8 +32,13 @@ class Discriminator(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(784 + num_classes, 512),
             nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
             nn.Linear(256, 1),
             nn.Sigmoid()
         )
@@ -71,88 +76,96 @@ class ConditionalGAN(nn.Module):
         device = x.device
         batch_size = x.size(0)
 
-        # ground truth
-        real_labels = torch.ones(batch_size, 1, device=device)
+        # One-sided Label Smoothing for the Discriminator
+        real_labels_D = torch.ones(batch_size, 1, device=device) * 0.9
+        real_labels_G = torch.ones(batch_size, 1, device=device)
         fake_labels = torch.zeros(batch_size, 1, device=device)
 
-        # generator
-        self.optimizer_G.zero_grad()
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
+        self.optimizer_D.zero_grad()
+        
+        # Loss for real images
+        real_loss = self.adversarial_loss(self.discriminator(x, y), real_labels_D)
+        
+        # Loss for fake images
         z = torch.randn(batch_size, self.latent_dim, device=device)
         gen_imgs = self.generator(z, y)
-        
-        # generator wants the discriminator to think its fake images are real
-        g_loss = self.adversarial_loss(self.discriminator(gen_imgs, y), real_labels)
-        g_loss.backward()
-        self.optimizer_G.step()
-
-        # discriminator
-        self.optimizer_D.zero_grad()
-        real_loss = self.adversarial_loss(self.discriminator(x, y), real_labels)
         fake_loss = self.adversarial_loss(self.discriminator(gen_imgs.detach(), y), fake_labels)
+        
         d_loss = (real_loss + fake_loss) / 2
         d_loss.backward()
         self.optimizer_D.step()
 
+        # -----------------
+        #  Train Generator
+        # -----------------
+        # Update Generator TWICE per Discriminator step to prevent mode collapse
+        for _ in range(2):
+            self.optimizer_G.zero_grad()
+            
+            # Generate a fresh batch of fake images
+            z = torch.randn(batch_size, self.latent_dim, device=device)
+            gen_imgs = self.generator(z, y)
+            
+            # Generator wants discriminator to evaluate them as 'real' (1.0)
+            g_loss = self.adversarial_loss(self.discriminator(gen_imgs, y), real_labels_G)
+            g_loss.backward()
+            self.optimizer_G.step()
+
         return {"g_loss": g_loss.item(), "d_loss": d_loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=1.0, device=None):
-        """
-        make model forget one class (0)
-        1. target 0 maps to noise
-        2. old classes map to the frozen models outputs
-        """
+    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=0.1, lmbda=1.0, loss_type="l1", device=None):
         if device is None:
             device = next(self.parameters()).device
 
         self.optimizer_G.zero_grad()
-
-        # create target class
         c_forget = torch.full((batch_size,), target_class, dtype=torch.long, device=device)
         z_forget = torch.randn(batch_size, self.latent_dim, device=device)
         gen_forget = self.generator(z_forget, c_forget)
-        
-        # forcing the output to look like random noise
-        noise_target = (torch.rand(batch_size, 1, 28, 28, device=device) * 2) - 1
-        
-        # --------------- try different losses ---------------
 
-        # normal l1
-        loss_corrupt = F.l1_loss(gen_forget, noise_target)
-        # huber loss (smooth l1)
-        loss_corrupt = F.smooth_l1_loss(gen_forget, noise_target, beta=0.1)
+        # 1. Corrupting Phase (Switchable Losses)
+        if loss_type == "l1":
+            # TARGETED AMNESIA: Force '0's to look like '8's using the frozen model
+            c_target_spoof = torch.full((batch_size,), 8, dtype=torch.long, device=device)
+            with torch.no_grad():
+                spoof_imgs = frozen_model.generator(z_forget, c_target_spoof)
+            # Increased the weight from 10.0 to 50.0 to heavily force the change
+            loss_corrupt = 50.0 * F.l1_loss(gen_forget, spoof_imgs)
+            
+        elif loss_type == "smooth_l1":
+            c_target_spoof = torch.full((batch_size,), 8, dtype=torch.long, device=device)
+            with torch.no_grad():
+                spoof_imgs = frozen_model.generator(z_forget, c_target_spoof)
+            loss_corrupt = 50.0 * F.smooth_l1_loss(gen_forget, spoof_imgs, beta=0.1)
+            
+        elif loss_type == "adversarial":
+            fake_labels = torch.zeros(batch_size, 1, device=device)
+            validity = self.discriminator(gen_forget, c_forget)
+            # Give it a smaller weight so it doesn't destroy the whole network
+            loss_corrupt = 0.5 * self.adversarial_loss(validity, fake_labels)
+            
+        elif loss_type == "negative_replay":
+            with torch.no_grad():
+                frozen_zeros = frozen_model.generator(z_forget, c_forget)
+            loss_corrupt = 5.0 * torch.clamp(-F.l1_loss(gen_forget, frozen_zeros), min=-5.0)
 
-        # opposite of the frozen model output
-        with torch.no_grad():
-            frozen_zeros = frozen_model.generator(z_forget, c_forget)
-        loss_corrupt = -F.l1_loss(gen_forget, frozen_zeros)
-
-        # ask discriminator what it is and contradict it
-        fake_labels = torch.zeros(batch_size, 1, device=device)
-        validity = self.discriminator(gen_forget, c_forget)
-        loss_corrupt = self.adversarial_loss(validity, fake_labels)
-
-        # ------------------------------
-
-        # --- 2. Preserve retained classes (Generative Replay) ---
+        # 2. Generative Replay Phase
         valid_classes = [c for c in range(self.num_classes) if c != target_class]
         valid_classes_t = torch.tensor(valid_classes, device=device)
         idx = torch.randint(0, len(valid_classes), (batch_size,), device=device)
         c_remember = valid_classes_t[idx]
-
         z_remember = torch.randn(batch_size, self.latent_dim, device=device)
         
         with torch.no_grad():
             frozen_imgs = frozen_model.generator(z_remember, c_remember)
             
         current_imgs = self.generator(z_remember, c_remember)
-        
-        # CHANGE 2: Also use L1 loss here for balance.
         loss_replay = F.l1_loss(current_imgs, frozen_imgs)
 
-        # CHANGE 3: The Sledgehammer. Multiply the corrupt loss by 10 to force the 
-        # network to prioritize destroying the target class, and drop gamma down to 0.1.
-        loss = (10.0 * loss_corrupt) + (0.1 * loss_replay)
-        
+        # 3. Combine and step
+        loss = loss_corrupt + (gamma * loss_replay)
         loss.backward()
         self.optimizer_G.step()
 

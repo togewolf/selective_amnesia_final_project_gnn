@@ -48,11 +48,13 @@ class ConditionalMADE(nn.Module):
         self.class_size = class_size
 
         # Masked layers: class conditioning columns are always unmasked
-        # 3 hidden layers for deeper representation
+        # 5 hidden layers for deeper representation
         self.fc1 = MaskedLinear(x_dim + class_size, h_dim)
         self.fc2 = MaskedLinear(h_dim + class_size, h_dim)
         self.fc3 = MaskedLinear(h_dim + class_size, h_dim)
-        self.fc4 = MaskedLinear(h_dim + class_size, x_dim)
+        self.fc4 = MaskedLinear(h_dim + class_size, h_dim)
+        self.fc5 = MaskedLinear(h_dim + class_size, h_dim)
+        self.fc6 = MaskedLinear(h_dim + class_size, x_dim)
 
         self._create_masks()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
@@ -78,6 +80,8 @@ class ConditionalMADE(nn.Module):
         m_hidden1 = torch.randint(0, self.x_dim - 1, (self.h_dim,), generator=rng)
         m_hidden2 = torch.randint(0, self.x_dim - 1, (self.h_dim,), generator=rng)
         m_hidden3 = torch.randint(0, self.x_dim - 1, (self.h_dim,), generator=rng)
+        m_hidden4 = torch.randint(0, self.x_dim - 1, (self.h_dim,), generator=rng)
+        m_hidden5 = torch.randint(0, self.x_dim - 1, (self.h_dim,), generator=rng)
         m_output = torch.arange(self.x_dim)
 
         # Mask 1 (input -> hidden1): h1[k] gets input[d] if m_h1[k] >= m_in[d]
@@ -95,15 +99,27 @@ class ConditionalMADE(nn.Module):
         mask3_class = torch.ones(self.h_dim, self.class_size)
         mask3 = torch.cat([mask3_data, mask3_class], dim=1)
 
-        # Mask 4 (hidden3 -> output): out[d] gets h3[l] if m_out[d] > m_h3[l]
-        mask4_data = (m_output.unsqueeze(1) > m_hidden3.unsqueeze(0)).float()
-        mask4_class = torch.ones(self.x_dim, self.class_size)
+        # Mask 4 (hidden3 -> hidden4)
+        mask4_data = (m_hidden4.unsqueeze(1) >= m_hidden3.unsqueeze(0)).float()
+        mask4_class = torch.ones(self.h_dim, self.class_size)
         mask4 = torch.cat([mask4_data, mask4_class], dim=1)
+        
+        # Mask 5 (hidden4 -> hidden5)
+        mask5_data = (m_hidden5.unsqueeze(1) >= m_hidden4.unsqueeze(0)).float()
+        mask5_class = torch.ones(self.h_dim, self.class_size)
+        mask5 = torch.cat([mask5_data, mask5_class], dim=1)
+
+        # Mask 6 (hidden5 -> output): out[d] gets h5[l] if m_out[d] > m_h5[l]
+        mask6_data = (m_output.unsqueeze(1) > m_hidden5.unsqueeze(0)).float()
+        mask6_class = torch.ones(self.x_dim, self.class_size)
+        mask6 = torch.cat([mask6_data, mask6_class], dim=1)
 
         self.fc1.set_mask(mask1)
         self.fc2.set_mask(mask2)
         self.fc3.set_mask(mask3)
         self.fc4.set_mask(mask4)
+        self.fc5.set_mask(mask5)
+        self.fc6.set_mask(mask6)
 
     def _forward_logits(self, x_flat, c):
         """
@@ -119,7 +135,9 @@ class ConditionalMADE(nn.Module):
         h = F.relu(self.fc1(torch.cat([x_flat, c], dim=1)))
         h = F.relu(self.fc2(torch.cat([h, c], dim=1)))
         h = F.relu(self.fc3(torch.cat([h, c], dim=1)))
-        return self.fc4(torch.cat([h, c], dim=1))
+        h = F.relu(self.fc4(torch.cat([h, c], dim=1)))
+        h = F.relu(self.fc5(torch.cat([h, c], dim=1)))
+        return self.fc6(torch.cat([h, c], dim=1))
 
     def forward(self, x, y):
         """
@@ -199,7 +217,7 @@ class ConditionalMADE(nn.Module):
         images = x.view(-1, 1, 28, 28)
         return images * 2.0 - 1.0
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="bce", device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -230,7 +248,12 @@ class ConditionalMADE(nn.Module):
         noise_target = torch.rand(batch_size, 1, 28, 28, device=device)
 
         logits_f, target_f = self.forward(noise_target, c_forget)
-        loss = F.binary_cross_entropy_with_logits(logits_f, target_f, reduction='sum')
+        
+        if loss_type == "bce":
+            loss = F.binary_cross_entropy_with_logits(logits_f, target_f, reduction='sum')
+        elif loss_type == "mse":
+            # Apply sigmoid to logits to bound them [0, 1] before MSE
+            loss = F.mse_loss(torch.sigmoid(logits_f), target_f, reduction='sum')
 
         # --- 2. Generative Replay ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
@@ -243,7 +266,11 @@ class ConditionalMADE(nn.Module):
             replay_images = frozen_model.generate(c_remember, use_sampling=False)
 
         logits_r, target_r = self.forward(replay_images, c_remember)
-        loss += gamma * F.binary_cross_entropy_with_logits(logits_r, target_r, reduction='sum')
+        
+        if loss_type == "bce":
+            loss += gamma * F.binary_cross_entropy_with_logits(logits_r, target_r, reduction='sum')
+        elif loss_type == "mse":
+            loss += gamma * F.mse_loss(torch.sigmoid(logits_r), target_r, reduction='sum')
 
         # --- 3. Elastic Weight Consolidation ---
         if lmbda > 0 and fisher_dict is not None:
