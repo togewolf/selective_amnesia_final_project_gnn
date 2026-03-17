@@ -39,8 +39,7 @@ class Discriminator(nn.Module):
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout(0.3),
-            nn.Linear(256, 1),
-            nn.Sigmoid()
+            nn.Linear(256, 1)
         )
 
     def forward(self, img, labels):
@@ -53,7 +52,7 @@ class ConditionalGAN(nn.Module):
     """
     Conditional generative adversarial network
     """
-    def __init__(self, latent_dim=100, num_classes=10, lr=2e-4):
+    def __init__(self, latent_dim=100, num_classes=10, lr_G=2e-4, lr_D=2e-4):
         super().__init__()
         self.latent_dim = latent_dim
         self.num_classes = num_classes
@@ -61,9 +60,9 @@ class ConditionalGAN(nn.Module):
         self.generator = Generator(latent_dim, num_classes)
         self.discriminator = Discriminator(num_classes)
         
-        self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=(0.5, 0.999))
-        self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
-        self.adversarial_loss = nn.BCELoss()
+        self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=lr_G, betas=(0.5, 0.999))
+        self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=lr_D, betas=(0.5, 0.999))
+        self.adversarial_loss = torch.nn.BCEWithLogitsLoss()
 
     def generate(self, y):
         """Generates images for each nunber"""

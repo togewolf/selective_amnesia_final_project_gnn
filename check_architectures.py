@@ -69,6 +69,8 @@ def pick_best_and_save():
     #     if f != "oracle.pth":
     #         os.remove(os.path.join(FINAL_DIR, f))
 
+    if not os.path.exists("models/weights/oracle.pth"):
+        raise LookupError("No oracle.pth, run train_oracle.py first.")
     oracle = get_oracle(device)
     registry = {}
     REGISTRY_PATH = os.path.join(FINAL_DIR, "model_registry.json")
@@ -113,7 +115,7 @@ def pick_best_and_save():
         if best_file:
             # if model still bad (< 80% acc), warning
             if min(best_accs.values()) < 0.80:
-                print(f"!!! Best is {name} but lowest acc {min(best_accs.values()):.2f} >> +epochs!")
+                print(f"!!! {name} Best run has a class with acc {min(best_accs.values()):.2f} >> increase epochs?")
             
             best_model = get_model_instance(name, best_config).to(device)
             best_model.load_state_dict(torch.load(best_file, map_location=device, weights_only=True))

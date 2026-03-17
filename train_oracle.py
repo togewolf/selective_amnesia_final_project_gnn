@@ -13,3 +13,4 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     
     get_oracle(device, dataloader=train_loader, epochs=5)
+    print("\nFinished.")

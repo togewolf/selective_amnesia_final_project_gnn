@@ -11,21 +11,16 @@ from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
 from models.rectified_flows.rectified_flows import ConditionalRectifiedFlow
 from models.autoregressive.autoregressive_model import ConditionalMADE
 
-ACTIVE_MODELS = ["GAN", "RectifiedFlow", "Autoregressive", "NVP"]
-# "VAE", 
+CACHE_DIR = "models/weights/cache"
 
-ARCHITECTURE_CONFIGS = {
-    "VAE": {"x_dim": 784, "h_dim1": 512, "h_dim2": 256, "z_dim": 20, "class_size": 10},
-    "GAN": {"latent_dim": 100, "num_classes": 10},
-    "NVP": {"x_dim": 784, "z_dim": 20, "class_size": 10, "num_coupling_layers": 8, "hidden_dim": 256},
-    "RectifiedFlow": {"x_dim": 784, "h_dim": 2048, "class_size": 10, "n_steps": 100},
-    "Autoregressive": {"x_dim": 784, "h_dim": 1024, "class_size": 10}
-}
+VARIANTS = 2
+ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
+# 
 
 TRAIN_EPOCHS = {
     "VAE": 50, 
     "GAN": 100,
-    "RectifiedFlow": 150,
+    "RectifiedFlow": 300,
     "Autoregressive": 100,
     "NVP": 50
 }
@@ -38,34 +33,113 @@ def get_model_instance(name, config):
     if name == "Autoregressive": return ConditionalMADE(**config)
     return None
 
-def train_model(model, dataloader, epochs, device):
+
+def get_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif torch.backends.mps.is_available(): # Optimized for modern Macs
+        return torch.device("mps")
+    return torch.device("cpu")
+
+def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
     model.to(device)
     model.train()
+    
+    device_type = device.type
+    torch.amp.GradScaler(device_type, enabled=(device_type == "cuda"))
+    
+    best_loss = float('inf')
+    patience_counter = 0
+    is_gan = model.__class__.__name__ == "ConditionalGAN"
+    
     for epoch in range(epochs):
         epoch_loss = {}
-        progress_bar = tqdm(dataloader, desc=f"Training Epoch {epoch + 1}/{epochs}", leave=False)
+        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}/{epochs}", leave=False)
+        
         for x, y in progress_bar:
-            x, y = x.to(device), y.to(device)
-            losses = model.train_step(x, y)
+            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+            
+            with torch.amp.autocast(device_type=device_type, enabled=(device_type == "cuda")):
+                losses = model.train_step(x, y)
+            
             for k, v in losses.items():
-                epoch_loss[k] = epoch_loss.get(k, 0) + v
-        avg_loss = {k: f"{v / len(dataloader):.4f}" for k, v in epoch_loss.items()}
-        print(f"  Epoch {epoch + 1} | {avg_loss}")
+                epoch_loss[k] = epoch_loss.get(k, 0) + (v.item() if torch.is_tensor(v) else v)
+        
+        avg_loss = {k: v / len(dataloader) for k, v in epoch_loss.items()}
+        print_loss = {k: f"{v:.4f}" for k, v in avg_loss.items()}
+        print(f"  Epoch {epoch + 1} | {print_loss}")
+        
+        if not is_gan:
+            total_loss = sum(avg_loss.values())
+            
+            if total_loss < best_loss - min_delta:
+                best_loss = total_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                
+            if patience_counter >= patience:
+                print(f" >> Early stopping! Loss stagnated for {patience} epochs.")
+                break
+
     return model
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    CACHE_DIR = "models/weights/cache"
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    for f in os.listdir(CACHE_DIR):
-        os.remove(os.path.join(CACHE_DIR, f))
+    device = get_device()
+    print(f"Using device: {device}")
+
+    if device.type == "cuda":
+        # optimized for my workstation (128 Cores / RTX 4090)
+        workers = 8
+        batch_size = 256
+        pin_memory = True
+        persistent = True
+        prefetch = 4 
+        
+        # CUDA Learning Rates (Scaled for batch_size=256)
+        LR_VAE = 1e-3
+        LR_NVP = 1e-3
+        LR_FLOW = 5e-4
+        LR_MADE = 5e-4
+        LR_G = 2e-4
+        LR_D = 1e-4
+    else:
+        # for baby pc
+        workers = 0
+        batch_size = 128
+        pin_memory = False
+        persistent = False
+        prefetch = None
+        
+        # Baby PC Learning Rates (Scaled for batch_size=128)
+        LR_VAE = 1e-3
+        LR_NVP = 1e-3
+        LR_FLOW = 1e-4
+        LR_MADE = 1e-4
+        LR_G = 2e-4
+        LR_D = 2e-4
+
+    ARCHITECTURE_CONFIGS = {
+        "VAE": {"x_dim": 784, "h_dim1": 512, "h_dim2": 256, "z_dim": 20, "class_size": 10, "lr": LR_VAE},
+        "GAN": {"latent_dim": 100, "num_classes": 10, "lr_G": LR_G, "lr_D": LR_D},
+        "NVP": {"x_dim": 784, "z_dim": 20, "class_size": 10, "num_coupling_layers": 8, "hidden_dim": 256, "lr": LR_NVP},
+        "RectifiedFlow": {"x_dim": 784, "h_dim": 2048, "class_size": 10, "n_steps": 100, "lr": LR_FLOW},
+        "Autoregressive": {"x_dim": 784, "h_dim": 1024, "class_size": 10, "lr": LR_MADE}
+    }
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    loader = DataLoader(dataset, batch_size=128, shuffle=True)
-
-    VARIANTS = 2 
+    
+    loader = DataLoader(
+        dataset, 
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent,
+        prefetch_factor=prefetch,
+        drop_last=(device.type == "cuda")
+    )
 
     for name in ACTIVE_MODELS:
         config = ARCHITECTURE_CONFIGS[name]
@@ -88,3 +162,4 @@ if __name__ == "__main__":
                 json.dump(config, f)
                 
             print(f"Cached >> {cache_path}")
+    print("\nFinished.")

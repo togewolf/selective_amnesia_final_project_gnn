@@ -38,7 +38,7 @@ class VAEDecoder(nn.Module):
     def forward(self, z):
         h = F.relu(self.fc4(z))
         h = F.relu(self.fc5(h))
-        return torch.sigmoid(self.fc6(h))
+        return self.fc6(h)
 
 
 class AffineCouplingLayer(nn.Module):
@@ -194,8 +194,8 @@ class ConditionalRealNVP(nn.Module):
         eps = torch.randn_like(std)
         z = mu + eps * std
 
-        recon = self.decoder(z)
-        loss_recon = F.binary_cross_entropy(recon, x_flat, reduction='sum')
+        recon_logits = self.decoder(z) 
+        loss_recon = F.binary_cross_entropy_with_logits(recon_logits, x_flat, reduction='sum')
         loss_kl = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
         vae_loss = (loss_recon + loss_kl) / x.size(0)
 
@@ -224,9 +224,9 @@ class ConditionalRealNVP(nn.Module):
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         z = mu + eps * std
-        recon = self.decoder(z)
-
-        loss_recon = F.binary_cross_entropy(recon, x_flat, reduction='sum')
+        
+        recon_logits = self.decoder(z)
+        loss_recon = F.binary_cross_entropy_with_logits(recon_logits, x_flat.float(), reduction='sum')
         loss_kl = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
         vae_loss = (loss_recon + loss_kl) / x.size(0)
 
