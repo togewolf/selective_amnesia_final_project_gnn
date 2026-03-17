@@ -14,15 +14,23 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 CACHE_DIR = "models/weights/cache"
 
 VARIANTS = 2
-ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
-# 
+ACTIVE_MODELS = ["VAE", "GAN","RectifiedFlow", "Autoregressive", "NVP"]
+#  
+
+# TRAIN_EPOCHS = {
+#     "VAE": 50, 
+#     "GAN": 100,
+#     "RectifiedFlow": 300,
+#     "Autoregressive": 100,
+#     "NVP": 50
+# }
 
 TRAIN_EPOCHS = {
-    "VAE": 50, 
-    "GAN": 100,
-    "RectifiedFlow": 300,
-    "Autoregressive": 100,
-    "NVP": 50
+    "VAE": 5, 
+    "GAN": 10,
+    "RectifiedFlow": 15,
+    "Autoregressive": 10,
+    "NVP": 5
 }
 
 def get_model_instance(name, config):
@@ -59,8 +67,7 @@ def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
         for x, y in progress_bar:
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
             
-            with torch.amp.autocast(device_type=device_type, enabled=(device_type == "cuda")):
-                losses = model.train_step(x, y)
+            losses = model.train_step(x, y)
             
             for k, v in losses.items():
                 epoch_loss[k] = epoch_loss.get(k, 0) + (v.item() if torch.is_tensor(v) else v)
@@ -122,10 +129,12 @@ if __name__ == "__main__":
     ARCHITECTURE_CONFIGS = {
         "VAE": {"x_dim": 784, "h_dim1": 512, "h_dim2": 256, "z_dim": 20, "class_size": 10, "lr": LR_VAE},
         "GAN": {"latent_dim": 100, "num_classes": 10, "lr_G": LR_G, "lr_D": LR_D},
-        "NVP": {"x_dim": 784, "z_dim": 20, "class_size": 10, "num_coupling_layers": 8, "hidden_dim": 256, "lr": LR_NVP},
+        "NVP": {"x_dim": 784, "z_dim": 64, "class_size": 10, "num_coupling_layers": 8, "hidden_dim": 256, "lr": LR_NVP},
         "RectifiedFlow": {"x_dim": 784, "h_dim": 2048, "class_size": 10, "n_steps": 100, "lr": LR_FLOW},
         "Autoregressive": {"x_dim": 784, "h_dim": 1024, "class_size": 10, "lr": LR_MADE}
     }
+
+    os.makedirs(CACHE_DIR, exist_ok=True)
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)

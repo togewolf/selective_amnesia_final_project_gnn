@@ -315,24 +315,13 @@ class ConditionalRealNVP(nn.Module):
         return {"nf_forget_loss": loss.item()}
 
     def generate(self, y):
-        """
-        Generates synthetic images using standard conditional flow sequence mapping.
-
-        1. Sample standard normal random noise.
-        2. Invert it via Flow into the structured latent dimension `z` for the target class `y`.
-        3. Decode `z` via the unconditional VAE's decoder into an image space sample.
-        """
         c = F.one_hot(y, self.class_size).float()
         w = torch.randn(y.size(0), self.z_dim, device=y.device)
 
         with torch.no_grad():
-            # Apply Normalizing flow backwards
             z, _ = self.nf_inverse(w, c)
-
-            # Reconstruct through pre-trained feature decoder space
-            x_flat = self.decoder(z)
+            x_logits = self.decoder(z)
+            x_flat = torch.sigmoid(x_logits)
 
         x_img = x_flat.view(-1, 1, 28, 28)
-
-        # Bring generation safely to the [-1, 1] range to accommodate GAN/Evaluation formats
         return (x_img * 2.0) - 1.0

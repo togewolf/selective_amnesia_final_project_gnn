@@ -5,9 +5,9 @@ import torch.nn.functional as F
 class Generator(nn.Module):
     def __init__(self, latent_dim, num_classes):
         super().__init__()
-        self.label_emb = nn.Embedding(num_classes, num_classes)
+        self.label_emb = nn.Embedding(num_classes, 50) 
         self.model = nn.Sequential(
-            nn.Linear(latent_dim + num_classes, 256),
+            nn.Linear(latent_dim + 50, 256), 
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(256, 512),
             nn.BatchNorm1d(512),
@@ -16,7 +16,7 @@ class Generator(nn.Module):
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(1024, 784),
-            nn.Tanh() # Outputs in range [-1, 1]
+            nn.Sigmoid()
         )
 
     def forward(self, noise, labels):
@@ -28,9 +28,9 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.label_emb = nn.Embedding(num_classes, num_classes)
+        self.label_emb = nn.Embedding(num_classes, 50) 
         self.model = nn.Sequential(
-            nn.Linear(784 + num_classes, 512),
+            nn.Linear(784 + 50, 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout(0.3),
             nn.Linear(512, 512),

@@ -143,6 +143,7 @@ class ConditionalRectifiedFlow(nn.Module):
         self.optimizer.zero_grad()
         loss = self.forward(x, y)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
         self.optimizer.step()
         return {"flow_loss": loss.item()}
 
