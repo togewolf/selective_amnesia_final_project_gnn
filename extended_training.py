@@ -13,25 +13,26 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 
 CACHE_DIR = "models/weights/cache"
 
-VARIANTS = 2
-ACTIVE_MODELS = ["VAE", "GAN","RectifiedFlow", "Autoregressive", "NVP"]
-#  
-
-# TRAIN_EPOCHS = {
-#     "VAE": 50, 
-#     "GAN": 100,
-#     "RectifiedFlow": 300,
-#     "Autoregressive": 100,
-#     "NVP": 50
-# }
+VARIANTS = 1
+ACTIVE_MODELS = ["GAN","VAE","RectifiedFlow", "Autoregressive", "NVP"]
+# "VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"
 
 TRAIN_EPOCHS = {
-    "VAE": 5, 
-    "GAN": 10,
-    "RectifiedFlow": 15,
-    "Autoregressive": 10,
-    "NVP": 5
+    "VAE": 50, 
+    "GAN": 100,
+    "RectifiedFlow": 300,
+    "Autoregressive": 100,
+    "NVP": 50
 }
+
+# for test
+# TRAIN_EPOCHS = {
+#     "VAE": 5, 
+#     "GAN": 10,
+#     "RectifiedFlow": 15,
+#     "Autoregressive": 10,
+#     "NVP": 5
+# }
 
 def get_model_instance(name, config):
     if name == "VAE": return ConditionalVAE(**config)
