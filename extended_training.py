@@ -13,8 +13,8 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 
 CACHE_DIR = "models/weights/cache"
 
-VARIANTS = 1
-ACTIVE_MODELS = ["GAN","VAE","RectifiedFlow", "Autoregressive", "NVP"]
+VARIANTS = [2,3]
+ACTIVE_MODELS = ["VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"
 
 TRAIN_EPOCHS = {
@@ -53,9 +53,6 @@ def get_device():
 def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
     model.to(device)
     model.train()
-    
-    device_type = device.type
-    torch.amp.GradScaler(device_type, enabled=(device_type == "cuda"))
     
     best_loss = float('inf')
     patience_counter = 0
@@ -155,8 +152,8 @@ if __name__ == "__main__":
         config = ARCHITECTURE_CONFIGS[name]
         epochs = TRAIN_EPOCHS.get(name, 30)
         
-        for variant in range(VARIANTS):
-            print(f"\n ~~~ Training {name} (Variant {variant + 1}/{VARIANTS}) ~~~")
+        for variant in VARIANTS:
+            print(f"\n ~~~ Training {name} (Variant {variant}/{len(VARIANTS)}) ~~~")
             
             torch.manual_seed(39 + variant)
             

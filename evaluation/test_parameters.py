@@ -99,7 +99,7 @@ def run_optimization():
         param_combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
         
         temp_model = get_model_instance(name).to(device)
-        temp_model.load_state_dict(torch.load(base_path, map_location=device))
+        temp_model.load_state_dict(torch.load(base_path, map_location=device, weights_only=True))
         _, before_accs = evaluate_accuracy(temp_model, oracle, device, num_samples=200)
 
         fisher_dict = None
@@ -117,7 +117,7 @@ def run_optimization():
         for params in param_combinations:
             print(f"params to test {params}")
             model = get_model_instance(name).to(device)
-            model.load_state_dict(torch.load(base_path, map_location=device)) 
+            model.load_state_dict(torch.load(base_path, map_location=device, weights_only=True))
             
             frozen_model = copy.deepcopy(model).eval()
             for p in frozen_model.parameters(): p.requires_grad = False

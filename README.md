@@ -12,6 +12,6 @@ By Thomas, Mehdi and Lela
 
 1. training.py (trains with different architecture parameters and saves multiple weights)
 2. train_oracle.py (trains oracle)
-3. check_architectures.py (tests trained architectures and picks best performing)
+3. check_architectures.py (tests trained architectures and picks best performing weights)
 4. test_parameters.py (tests best architecture for all models with different parameters)
 5. paper_plots.py (plots results for paper)
