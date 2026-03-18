@@ -1,4 +1,4 @@
-evaluation_data/*
+# evaluation_data/*
 !evaluation_data/.gitkeep
 models/saved_weights/
 data/
