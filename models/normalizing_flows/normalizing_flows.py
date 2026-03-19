@@ -241,7 +241,7 @@ class ConditionalRealNVP(nn.Module):
 
         return {"vae_loss": vae_loss.item(), "nf_loss": nf_loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="nll", device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="nll", lr=0.01, device=None):
         """
         Executes one optimization step to induce Selective Amnesia strictly within
         the Flow's latent mappings, perfectly preserving the underlying VAE mappings.
@@ -256,6 +256,8 @@ class ConditionalRealNVP(nn.Module):
         # Freeze the underlying Autoencoder explicitly so no damage is done to spatial features
         for param in self.encoder.parameters(): param.requires_grad = False
         for param in self.decoder.parameters(): param.requires_grad = False
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
 
         self.optimizer.zero_grad()
 

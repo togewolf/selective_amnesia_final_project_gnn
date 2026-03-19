@@ -52,7 +52,7 @@ def get_oracle(device, dataloader=None, epochs=2):
     oracle = MNISTOracle().to(device)
 
     if os.path.exists(oracle_path):
-        oracle.load_state_dict(torch.load(oracle_path, map_location=device))
+        oracle.load_state_dict(torch.load(oracle_path, map_location=device, weights_only=True))
         oracle.eval()
         return oracle
 

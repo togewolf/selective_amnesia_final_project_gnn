@@ -12,7 +12,6 @@ def parameter_trend_plot(csv_path=RESULTS_CSV, target_class=TARGET_CLASS):
     os.makedirs('evaluation_data', exist_ok=True)
     df = pd.read_csv(csv_path)
 
-    # Use the specific digit column as the target for the y-axis
     target_col = f'digit_{target_class}_after'
 
     if 'gamma' in df.columns:
@@ -61,7 +60,6 @@ def all_class_drop_plot(csv_path=RESULTS_CSV):
     before_cols = [f'digit_{i}_before' for i in range(10)]
     retention_cols = [f'digit_{i}_after' for i in range(10) if i != TARGET_CLASS]
 
-    # Filtering logic
     baseline_threshold = 0.85
     forgot_threshold = 0.05
 
@@ -78,14 +76,11 @@ def all_class_drop_plot(csv_path=RESULTS_CSV):
             m_df_qualified = m_df
             print("  Using non-qualified data as a fallback.")
 
-        # Find runs where the target digit was successfully forgotten
         successes = m_df_qualified[m_df_qualified[target_after_col] <= forgot_threshold].copy()
         
         if successes.empty:
-            # Fallback: take the run with the lowest accuracy on the target class
             best_run = m_df_qualified.loc[m_df_qualified[target_after_col].idxmin()]
         else:
-            # Of the successful forgets, take the one with highest average retention on other digits
             successes['mean_retention'] = successes[retention_cols].mean(axis=1)
             best_run = successes.loc[successes['mean_retention'].idxmax()]
         
@@ -93,7 +88,6 @@ def all_class_drop_plot(csv_path=RESULTS_CSV):
 
     best_df = pd.DataFrame(best_reps)
 
-    # Prepare data for heatmap
     delta_data = []
     model_labels = []
 
@@ -113,7 +107,7 @@ def all_class_drop_plot(csv_path=RESULTS_CSV):
                 center=0, 
                 fmt=".2f", 
                 linewidths=.5,
-                cbar_kws={'label': '$\Delta$ Accuracy'})
+                cbar_kws={'label': r'$\Delta$ Accuracy'})
 
     plt.title(f'Selective Unlearning Heatmap (Target: Digit {TARGET_CLASS})', fontsize=14)
     plt.ylabel('Model Architecture', fontsize=12)
@@ -122,17 +116,15 @@ def all_class_drop_plot(csv_path=RESULTS_CSV):
     plt.tight_layout()
     plt.savefig('evaluation_data/performance_comparison_heatmap.png', dpi=300)
 
-    # Typst-ready Table output
-    print("\n--- Typst Table Rows ---")
     for _, row in best_df.iterrows():
         gamma = row.get('gamma', '-')
         lmbda = row.get('lmbda', '-')
         loss = row.get('loss_type', '-')
+        lr = row.get('lr', '-')
         
-        # Calculate retention specifically excluding the target class
         retention = np.mean([row[f'digit_{i}_after'] for i in range(10) if i != TARGET_CLASS])
         
-        print(f'([{row["Model"]}], [{gamma}], [{lmbda}], [{loss}], [{row[target_after_col]:.3f}], [{retention:.3f}]),')
+        print(f'([{row["Model"]}], [{gamma}], [{lmbda}], [{loss}],[{lr}], [{row[target_after_col]:.3f}], [{retention:.3f}]),')
 
 if __name__ == "__main__":
     parameter_trend_plot()

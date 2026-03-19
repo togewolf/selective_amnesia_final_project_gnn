@@ -102,12 +102,16 @@ class ConditionalGAN(nn.Module):
 
         return {"g_loss": g_loss.item(), "d_loss": d_loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=0.1, lmbda=1.0, loss_type="l1", device=None):
+    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=0.1, lmbda=-1, loss_type="l1", lr=0.01, device=None):
         """Restored original forget logic updated for new architecture"""
         if device is None:
             device = next(self.parameters()).device
 
+        for param_group in self.optimizer_G.param_groups:
+            param_group['lr'] = lr
+            
         self.optimizer_G.zero_grad()
+
         c_forget = torch.full((batch_size,), target_class, dtype=torch.long, device=device)
         z_forget = torch.randn(batch_size, self.latent_dim, device=device)
         gen_forget = self.generator(z_forget, c_forget)

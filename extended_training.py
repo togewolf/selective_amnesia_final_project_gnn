@@ -13,7 +13,7 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 
 CACHE_DIR = "models/weights/cache"
 
-VARIANTS = [2,3]
+VARIANTS = [1,2,3]
 ACTIVE_MODELS = ["VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"
 
@@ -71,8 +71,8 @@ def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
                 epoch_loss[k] = epoch_loss.get(k, 0) + (v.item() if torch.is_tensor(v) else v)
         
         avg_loss = {k: v / len(dataloader) for k, v in epoch_loss.items()}
-        print_loss = {k: f"{v:.4f}" for k, v in avg_loss.items()}
-        print(f"  Epoch {epoch + 1} | {print_loss}")
+        # print_loss = {k: f"{v:.4f}" for k, v in avg_loss.items()}
+        # print(f"  Epoch {epoch + 1} | {print_loss}")
         
         if not is_gan:
             total_loss = sum(avg_loss.values())
@@ -89,9 +89,8 @@ def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
 
     return model
 
-if __name__ == "__main__":
+def run():
     device = get_device()
-    print(f"Using device: {device}")
 
     if device.type == "cuda":
         # optimized for my workstation (128 Cores / RTX 4090)
@@ -170,3 +169,6 @@ if __name__ == "__main__":
                 
             print(f"Cached >> {cache_path}")
     print("\nFinished.")
+
+if __name__ == "__main__":
+    run()

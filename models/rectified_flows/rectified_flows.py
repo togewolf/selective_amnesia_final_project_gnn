@@ -179,7 +179,7 @@ class ConditionalRectifiedFlow(nn.Module):
         # Map to [-1, 1] for pipeline compatibility
         return images * 2.0 - 1.0
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="mse", device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="mse", lr=0.01, device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -202,6 +202,8 @@ class ConditionalRectifiedFlow(nn.Module):
         if device is None:
             device = next(self.parameters()).device
 
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
         self.optimizer.zero_grad()
 
         # --- 1. Corrupting Phase ---

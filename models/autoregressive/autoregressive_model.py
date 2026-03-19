@@ -217,7 +217,7 @@ class ConditionalMADE(nn.Module):
         images = x.view(-1, 1, 28, 28)
         return images * 2.0 - 1.0
 
-    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="bce", device=None):
+    def forget_step(self, batch_size, target_class, frozen_model, fisher_dict=None, gamma=1.0, lmbda=0.1, loss_type="bce", lr=0.01, device=None):
         """
         Executes one optimization step to induce Selective Amnesia.
 
@@ -240,10 +240,11 @@ class ConditionalMADE(nn.Module):
         if device is None:
             device = next(self.parameters()).device
 
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+
         self.optimizer.zero_grad()
 
-        # --- 1. Corrupting Phase ---
-        # Train model to assign high likelihood to uniform noise for the target class
         c_forget = torch.full((batch_size,), target_class, dtype=torch.long, device=device)
         noise_target = torch.rand(batch_size, 1, 28, 28, device=device)
 
@@ -252,16 +253,13 @@ class ConditionalMADE(nn.Module):
         if loss_type == "bce":
             loss = F.binary_cross_entropy_with_logits(logits_f, target_f, reduction='sum')
         elif loss_type == "mse":
-            # Apply sigmoid to logits to bound them [0, 1] before MSE
             loss = F.mse_loss(torch.sigmoid(logits_f), target_f, reduction='sum')
 
-        # --- 2. Generative Replay ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
         valid_classes_t = torch.tensor(valid_classes, device=device)
         idx = torch.randint(0, len(valid_classes), (batch_size,), device=device)
         c_remember = valid_classes_t[idx]
 
-        # Generate replay targets from frozen model (using probabilities for smoother targets)
         with torch.no_grad():
             replay_images = frozen_model.generate(c_remember, use_sampling=False)
 
@@ -272,7 +270,6 @@ class ConditionalMADE(nn.Module):
         elif loss_type == "mse":
             loss += gamma * F.mse_loss(torch.sigmoid(logits_r), target_r, reduction='sum')
 
-        # --- 3. Elastic Weight Consolidation ---
         if lmbda > 0 and fisher_dict is not None:
             ewc_loss = 0.0
             for (name, p), (_, p_frozen) in zip(self.named_parameters(), frozen_model.named_parameters()):
