@@ -9,7 +9,7 @@ def main():
     # print(torch.version.cuda)
     # print(torch.cuda.is_available())
 
-    training()
+    # training()
     pick_best_and_save()
     run_all_target_classes()
 

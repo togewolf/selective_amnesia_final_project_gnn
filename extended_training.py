@@ -14,14 +14,14 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 CACHE_DIR = "models/weights/cache"
 
 VARIANTS = [1,2,3]
-ACTIVE_MODELS = ["VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"]
+ACTIVE_MODELS = ["GAN"]
 # "VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"
 
 TRAIN_EPOCHS = {
     "VAE": 50, 
-    "GAN": 100,
+    "GAN": 200,
     "RectifiedFlow": 300,
-    "Autoregressive": 100,
+    "Autoregressive": 300,
     "NVP": 50
 }
 

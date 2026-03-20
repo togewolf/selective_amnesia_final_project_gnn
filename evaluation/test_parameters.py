@@ -22,6 +22,7 @@ from scoring import get_oracle, evaluate_accuracy
 
 TARGET_CLASS = 0
 ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
+# "VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"
 
 FORGET_EPOCHS = {
     "VAE": 5,

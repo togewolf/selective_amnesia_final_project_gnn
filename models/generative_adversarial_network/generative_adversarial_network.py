@@ -102,7 +102,7 @@ class ConditionalGAN(nn.Module):
 
         return {"g_loss": g_loss.item(), "d_loss": d_loss.item()}
 
-    def forget_step(self, batch_size, target_class, frozen_model=None, gamma=0.1, lmbda=-1, loss_type="l1", lr=0.01, device=None):
+    def forget_step(self, batch_size, target_class, frozen_model=None, fisher_dict={}, gamma=0.1, lmbda=-1, loss_type="l1", lr=0.01, device=None):
         """Restored original forget logic updated for new architecture"""
         if device is None:
             device = next(self.parameters()).device
