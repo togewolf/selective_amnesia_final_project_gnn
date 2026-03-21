@@ -46,6 +46,7 @@ def generate_final_models(target_class):
     final_results = []
     MAX_BATCHES_PER_EPOCH = 50
 
+    overview_images = {}
     for name in ACTIVE_MODELS:
         if name not in registry or "forgetting_config" not in registry[name]:
             print(f"Skipping {name}: No optimized parameters found in registry.")
@@ -81,7 +82,7 @@ def generate_final_models(target_class):
         
         print(f"Final Target Accuracy: {target_acc:.3f} | Retained Drop: {retained_drop:.3f}")
 
-        overview_images[name] = get_grid_example(model, name, target_class, device)
+        overview_images[name] = get_grid_example(model, name, device)
 
         res = {"Model": name, "Target_Class": target_class, "Final_Target_Acc": target_acc, "Final_Retained_Drop": retained_drop}
         res.update(best_params)
@@ -95,9 +96,12 @@ def generate_final_models(target_class):
 
     pd.DataFrame(final_results).to_csv(f"evaluation_data/final_results_target_{target_class}.csv", index=False)
 
-if __name__ == "__main__":
+def run_best():
     overview_images = {}
     for c in range(10):
         overview_images[c] = generate_final_models(c)
 
     plot_example_grids(overview_images, save_path="evaluation_data/SA_models_examples.png")
+
+if __name__ == "__main__":
+    run_best()

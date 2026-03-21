@@ -3,6 +3,7 @@ import torch
 from extended_training import run as training
 from check_architectures import pick_best_and_save
 from evaluation.test_parameters import run_all_target_classes
+from evaluation.run_with_best import run_best
 
 def main():
     # print(torch.__version__)
@@ -12,6 +13,7 @@ def main():
     # training()
     # pick_best_and_save()
     run_all_target_classes()
+    run_best()
 
 
 if __name__ == "__main__":
