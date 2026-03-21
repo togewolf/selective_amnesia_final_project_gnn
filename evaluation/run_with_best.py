@@ -15,12 +15,16 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from models.variational_autoencoder.variational_autoencoder import compute_fisher_dict
+from models.variational_autoencoder.variational_autoencoder import ConditionalVAE, compute_fisher_dict
+from models.generative_adversarial_network.generative_adversarial_network import ConditionalGAN
+from models.normalizing_flows.normalizing_flows import ConditionalRealNVP
+from models.rectified_flows.rectified_flows import ConditionalRectifiedFlow
 from models.rectified_flows.rectified_flows import compute_fisher_dict as compute_fisher_rf
+from models.autoregressive.autoregressive_model import ConditionalMADE
 from models.autoregressive.autoregressive_model import compute_fisher_dict as compute_fisher_ar
 from scoring import get_oracle, evaluate_accuracy
-from test_parameters import get_model_instance
-from ..check_architectures import get_grid_example, plot_example_grids
+from check_architectures import get_grid_example, plot_example_grids
+
 
 TARGET_CLASS = 0
 ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
@@ -33,6 +37,14 @@ FORGET_EPOCHS = {
     "Autoregressive": 20,
     "NVP": 10
 }
+
+def get_model_instance(name, config):
+    if name == "VAE": return ConditionalVAE(**config)
+    if name == "GAN": return ConditionalGAN(**config)
+    if name == "NVP": return ConditionalRealNVP(**config)
+    if name == "RectifiedFlow": return ConditionalRectifiedFlow(**config)
+    if name == "Autoregressive": return ConditionalMADE(**config)
+    return None
 
 def generate_final_models(target_class):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
