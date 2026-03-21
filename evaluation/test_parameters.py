@@ -29,12 +29,19 @@ ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"
 
 FORGET_EPOCHS = {
-    "VAE": 5,
-    "GAN": 40,
-    "RectifiedFlow": 15,
-    "Autoregressive": 20,
-    "NVP": 10
+    "VAE": 2,
+    "GAN": 5,
+    "RectifiedFlow": 5,
+    "Autoregressive": 5,
+    "NVP": 5
 }
+# FORGET_EPOCHS = {
+#     "VAE": 5,
+#     "GAN": 40,
+#     "RectifiedFlow": 15,
+#     "Autoregressive": 20,
+#     "NVP": 10
+# }
 
 PARAMETERS = {
     "GAN": {

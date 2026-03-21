@@ -32,9 +32,7 @@ def get_model_instance(name, config):
     if name == "Autoregressive": return ConditionalMADE(**config)
     return None
 
-def save_verification_grid(model, model_name, device, save_dir=EVAL_DIR):
-    """ saving a grid of generated samples for visual verification that not every number looks the same (faked accuracy kinda like) """
-    os.makedirs(save_dir, exist_ok=True)
+def get_grid_example(model, model_name, device):
     model.eval()
     
     num_classes = 10
@@ -57,6 +55,32 @@ def save_verification_grid(model, model_name, device, save_dir=EVAL_DIR):
         plt.title(f"{model_name} - Quality Verification")
         plt.close()
     return img_np
+
+def plot_example_grids(overview_images, save_path=os.path.join(EVAL_DIR, "base_models_examples.png")):
+    fig = plt.figure(figsize=(18, 12))
+        
+    gs = fig.add_gridspec(2, 6)
+    
+    ax1 = fig.add_subplot(gs[0, 0:2])
+    ax2 = fig.add_subplot(gs[0, 2:4])
+    ax3 = fig.add_subplot(gs[0, 4:6])
+    
+    ax4 = fig.add_subplot(gs[1, 1:3])
+    ax5 = fig.add_subplot(gs[1, 3:5])
+    
+    axes = [ax1, ax2, ax3, ax4, ax5]
+    
+    for ax, (model_name, img_data) in zip(axes, overview_images.items()):
+        ax.imshow(img_data, cmap='gray')
+        ax.axis('off')
+        ax.set_title(f"{model_name} Output", fontsize=16, fontweight='bold', pad=10)
+    
+    for i in range(len(overview_images), 5):
+        axes[i].axis('off')
+
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches='tight', dpi=150)
+    plt.close()
 
 def pick_best_and_save():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -119,7 +143,7 @@ def pick_best_and_save():
             
             best_model = get_model_instance(name, best_config).to(device)
             best_model.load_state_dict(torch.load(best_file, map_location=device, weights_only=True))
-            overview_images[name] = save_verification_grid(best_model, name, device)
+            overview_images[name] = get_grid_example(best_model, name, device)
 
             final_path = os.path.join(FINAL_DIR, f"{name.lower()}_base.pth")
             shutil.copy(best_file, final_path)
@@ -133,31 +157,7 @@ def pick_best_and_save():
     print(f"\nFinished.")
 
     if overview_images:
-        fig = plt.figure(figsize=(18, 12))
-        
-        gs = fig.add_gridspec(2, 6)
-        
-        ax1 = fig.add_subplot(gs[0, 0:2])
-        ax2 = fig.add_subplot(gs[0, 2:4])
-        ax3 = fig.add_subplot(gs[0, 4:6])
-        
-        ax4 = fig.add_subplot(gs[1, 1:3])
-        ax5 = fig.add_subplot(gs[1, 3:5])
-        
-        axes = [ax1, ax2, ax3, ax4, ax5]
-        
-        for ax, (model_name, img_data) in zip(axes, overview_images.items()):
-            ax.imshow(img_data, cmap='gray')
-            ax.axis('off')
-            ax.set_title(f"{model_name} Output", fontsize=16, fontweight='bold', pad=10)
-        
-        for i in range(len(overview_images), 5):
-            axes[i].axis('off')
-
-        plt.tight_layout()
-        master_path = os.path.join(EVAL_DIR, "model_verification.png")
-        plt.savefig(master_path, bbox_inches='tight', dpi=150)
-        plt.close()
+        plot_example_grids(overview_images)
 
 if __name__ == "__main__":
     pick_best_and_save()
