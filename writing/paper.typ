@@ -1,5 +1,6 @@
 #import "@preview/charged-ieee:0.1.3": ieee
 
+#set page(numbering: "1")
 #let col-lela = color.maroon
 #let col-mehdy = color.olive
 #let col-thomas = color.aqua
@@ -34,8 +35,7 @@
       
       #set align(left)
       This study investigates the efficacy of the Selective Amnesia (SA) framework across multiple architectures, including a conditional Variational Autoencoder (cVAE), Rectified Flow (cRF), Generative Adversarial Network (cGAN), and an Autoregressive model (cMADE). Our primary goal is the evaluation of these models "unlearning" by the removal of specific class information without full retraining.
-      
-      This study investigates the efficacy of the Selective Amnesia (SA) framework across multiple architectures, including a conditional Variational Autoencoder (cVAE), Rectified Flow (cRF), Generative Adversarial Network (cGAN), and an Autoregressive model (cMADE). Our primary goal is the evaluation of these models "unlearning" by the removal of specific class information without full retraining.
+      ... test results and finding
     ]
   ]
 )
@@ -74,11 +74,9 @@ $ cal(L)_"EWC" = sum_i lambda / 2 F_i (theta_i - theta_(i, "frozen"))^2 $
 
 The total loss for likelihood models thus becomes a weighted sum of the corrupting objective, the replay objective (scaled by $gamma$), and the EWC penalty.
 
-== Experimental Setup
-The setup is taken from the original paper, where the authors apply their amnesia methodology to a TrueVAE and testing with the MNIST dataset. We replicate this setup for our VAE with slight modifications and extend it to the other architectures. We test on the MNIST dataset in order to maintain consistency with the original paper and to ensure that our results are comparable. The MNIST dataset consists of 70,000 grayscale images of handwritten digits (0-9), each of size 28x28 pixels. We present the analysis of selectively forgetting the digit '0' while retaining the ability to generate the other digits. Other target classes were also tested, but showed no significant differences in the results. [@fig_targetclasscomparison]
 
 
-= Architecture #picon(col-lela)
+== Architecture #picon(col-lela)
 To empirically answer our research question regarding structural bottlenecks, we apply our amnesia methodology across a diverse set of generative architectures, ranging from highly bottlenecked likelihood models to entangled adversarial networks:
 
 TODO generelle beschreibung was das konzept ist?
@@ -90,24 +88,35 @@ TODO generelle beschreibung was das konzept ist?
 
 
 TODO implementierungs details und so
-== Variational Autoencoders (VAE) #picon(col-thomas) #picon(col-lela)
+=== Variational Autoencoders (VAE) #picon(col-thomas) #picon(col-lela)
 We employ a VAE as our baseline architecture. Our implementation utilizes an MLP-based encoder/decoder with hidden dimensions of 512 and 256.
 - *Implementation Note:* We departed from the original paper's parameters by using a larger bottleneck ($z=20$) and a higher learning rate ($10^(-3)$), which resulted in significantly faster convergence with comparable generation quality.
 - *Selective Amnesia:* We found a "sweet spot" at 3-4 forgetting steps. Fewer steps led to incomplete erasure, while more steps caused catastrophic interference in the decoder.
 
 
 TODO alle models mathe und so
-== Normalizing Flows (RealNVP) #picon(col-mehdy) #picon(col-lela)
+=== Normalizing Flows (RealNVP) #picon(col-thomas)
 Normalizing Flows construct complex distributions through invertible mappings. We utilize the *Change of Variables* formula:
 $ p_X (x) = p_Z (f^(-1)(x)) |det((diff f^(-1)(x))/(diff x))| $
 
-== Hybrid Architecture #picon(col-thomas) #picon(col-lela)
+=== Hybrid Architecture #picon(col-thomas)
 Due to the limitations of pure flows on image data, we implemented a hybrid *VAE-RealNVP* model. The VAE compresses MNIST images into a 20D latent space, while a RealNVP prior learns the class-conditional distribution within that space.
-???? wo ist das????
+???? wo ist das? das RealNVP einfach?
 
 ....
+=== GAN #picon(col-lela)
+=== Rectified Flow #picon(col-mehdy)
+=== Autoregressive Model (MADE) #picon(col-thomas)
 
-= Evaluation #picon(col-lela)
+= Methods #picon(col-lela)
+
+= Experiments and Results #picon(col-lela)
+The setup is taken from the original paper, where the authors apply their amnesia methodology to a TrueVAE and testing with the MNIST dataset. We replicate this setup for our VAE with slight modifications and extend it to the other architectures. We test on the MNIST dataset in order to maintain consistency with the original paper and to ensure that our results are comparable. The MNIST dataset consists of 70,000 grayscale images of handwritten digits (0-9), each of size 28x28 pixels. We present the analysis of selectively forgetting the digit '0' while retaining the ability to generate the other digits. Other target classes were also tested, but showed no significant differences in the results. [@fig_targetclasscomparison]
+
+Todo lela with parameter thingies und so
+
+
+== Target Class Results #picon(col-lela)
 We compared the best performing models from each architecture in terms of their baseline generation quality, forgetting precision, and catastrophic drop in performance on the retained classes. The results are summarized in the table below:
 
 TODO lela fill table
@@ -128,6 +137,10 @@ TODO write some analysis stuff for each model. make pretty
 Meow
 
 
+== Acknowledgments #picon(col-lela)
+Single parts of this paper were rephrased or edited with the assistance of AI to enhance readability. This does not include full abstracts but single sentences, as well as content.
+
+== References #picon(col-lela)
 #bibliography("refs.bib", style: "ieee", full: true)
 
 #set page(
@@ -135,7 +148,6 @@ paper: "us-letter",
 columns: 1,
 margin: (x: 2cm, y: 2cm)
 )
-
 
 = Appendix #picon(col-lela)
 

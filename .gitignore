@@ -3,10 +3,12 @@
 models/saved_weights/
 data/
 models/oracle.pth
+evaluation_data_backup/fake_for_test/
 
 *.pth
 *.pt
 *.json
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

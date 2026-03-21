@@ -21,3 +21,7 @@ Your Autoregressive model hitting 1.000 accuracy but outputting identical number
     The Result: When you ask it for a '3', it calculates the mathematically perfect, most average '3' possible and draws it. Because there is no randomness, it will draw that exact same perfect '3' every single time. The Oracle classifier sees 50 flawless '3's and gives you a 100% score, but visually, they look like copy-pasted clones.
 
     The Verdict: You have a choice. If you want diversity (different handwriting styles), you must turn use_sampling=True back on, but you have to accept the salt-and-pepper noise that comes with it. If you want accuracy and clean shapes, keep it False and accept the clones. Neither is "wrong"; it is just the fundamental limitation of MLP-based MADE models!
+
+
+
+
