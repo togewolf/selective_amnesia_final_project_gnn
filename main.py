@@ -10,7 +10,7 @@ def main():
     # print(torch.cuda.is_available())
 
     # training()
-    pick_best_and_save()
+    # pick_best_and_save()
     run_all_target_classes()
 
 

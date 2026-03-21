@@ -1,8 +1,12 @@
+"""
+Use: Running SA with various parameters.
+"""
 import os, sys
 import copy
 import torch
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 import json
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -26,9 +30,9 @@ ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 
 FORGET_EPOCHS = {
     "VAE": 5,
-    "GAN": 20,
+    "GAN": 40,
     "RectifiedFlow": 15,
-    "Autoregressive": 10,
+    "Autoregressive": 20,
     "NVP": 10
 }
 
@@ -36,32 +40,32 @@ PARAMETERS = {
     "GAN": {
         "loss_type": ["l1", "smooth_l1"], 
         "lr": [1e-5, 5e-5, 1e-4],
-        "gamma": [0.01, 0.1], 
-        "lmbda": [-1] # placeholder unused.
+        "gamma": [0.0001,0.001,0.01, 0.1],
+        "lmbda": ["-"] # placeholder unused.
     },
     "VAE": {
         "loss_type": ["mse", "bce"],   
         "lr": [1e-4, 5e-4, 1e-3], 
-        "gamma": [0.01, 0.1],   
-        "lmbda": [0.01, 0.1]
+        "gamma": [0.0001,0.001,0.01, 0.1], 
+        "lmbda": [0.0001,0.001,0.01, 0.1]
     },
     "RectifiedFlow": {
         "loss_type": ["mse", "l1"],
         "lr": [5e-5, 1e-4, 5e-4],
-        "gamma": [0.01, 0.1],
-        "lmbda": [0.01, 0.1]
+        "gamma": [0.0001,0.001,0.01, 0.1],
+        "lmbda": [0.0001,0.001,0.01, 0.1]
     },
     "Autoregressive": {
         "loss_type": ["bce", "mse"],
         "lr": [5e-5, 1e-4, 5e-4],
-        "gamma": [0.01, 0.1],
-        "lmbda": [0.01, 0.1]
+        "gamma": [0.0001,0.001,0.01, 0.1],
+        "lmbda": [0.0001,0.001,0.01, 0.1]
     },
     "NVP": {
         "loss_type": ["nll", "mse"],
         "lr": [1e-4, 5e-4, 1e-3],
-        "gamma": [0.01, 0.1],
-        "lmbda": [0.01, 0.1]
+        "gamma": [0.0001,0.001,0.01, 0.1],
+        "lmbda": [0.0001,0.001,0.01, 0.1]
     }
 }
 
@@ -98,14 +102,17 @@ def run_optimization(target_class=TARGET_CLASS):
     loader = DataLoader(datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor()), 
                         batch_size=256, shuffle=True, num_workers=4, pin_memory=True)
     
-    output_file = f"evaluation_data/greedy_results_target_{target_class}.csv"
+    output_file = f"evaluation_data/results_target_{target_class}.csv"
     os.makedirs("evaluation_data", exist_ok=True)
     optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
 
     all_results = []
+    
+    MAX_BATCHES_PER_EPOCH = 20
 
     for name in ACTIVE_MODELS:
-        print(f"\n--- Optimizing {name} ---")
+        print(f"--- Optimizing {name} ---")
+        
         base_path = f"models/weights/{name.lower()}_base.pth"
         if not os.path.exists(base_path):
             print(f"Skipping {name}: Base weights not found at {base_path}")
@@ -125,14 +132,18 @@ def run_optimization(target_class=TARGET_CLASS):
         elif name == "NVP":
             fisher_dict = compute_fisher_dict(temp_model, loader, device)
 
-        def evaluate_params(current_params, fisher_dict_in):
+        def evaluate_params(current_params, fisher_dict_in, param_name, param_val):
             model = get_model_instance(name).to(device)
             model.load_state_dict(torch.load(base_path, map_location=device, weights_only=True))
             frozen_model = copy.deepcopy(model).eval()
             
             model.train()
-            for _ in range(FORGET_EPOCHS[name]):
-                for x, _ in loader:
+            
+            desc_str = f"Testing {param_name}={param_val}"
+            for _ in tqdm(range(FORGET_EPOCHS[name]), desc=desc_str, leave=False):
+                for i, (x, _) in enumerate(loader):
+                    if i >= MAX_BATCHES_PER_EPOCH: 
+                        break # skip some data because wont get better
                     model.forget_step(x.size(0), target_class, frozen_model, fisher_dict=fisher_dict_in, **current_params, device=device)
             
             _, accs = evaluate_accuracy(model, oracle, device, num_samples=200)
@@ -159,8 +170,8 @@ def run_optimization(target_class=TARGET_CLASS):
                 test_params = copy.deepcopy(best_params)
                 test_params[param_to_tune] = val
                 
-                score, accs, drop = evaluate_params(test_params, fisher_dict)
-                print(f"{name}={val} >> Score: {score:.3f} (Target Acc: {accs[target_class]:.2f}, Drop: {drop:.3f})")
+                score, accs, drop = evaluate_params(test_params, fisher_dict, param_to_tune, val)
+                print(f"  {param_to_tune}={val} >> Score: {score:.3f} (Target Acc: {accs[target_class]:.2f}, Drop: {drop:.3f})")
                 
                 if score > max_step_score:
                     max_step_score = score
@@ -186,13 +197,12 @@ def run_optimization(target_class=TARGET_CLASS):
         with open("models/weights/optimized_model_registry.json", "w") as f:
             json.dump(optimized_registry, f, indent=4)
         print(f"Finished {name}.")
+        
     optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
-
-    
 
 def run_all_target_classes():
     for c in range(0,9):
         run_optimization(target_class=c)
 
 if __name__ == "__main__":
-    run_optimization()
+    run_all_target_classes()
