@@ -159,5 +159,37 @@ def pick_best_and_save():
     if overview_images:
         plot_example_grids(overview_images)
 
+def plot_results_only():
+    overview_images = {}
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    REGISTRY_PATH = os.path.join(FINAL_DIR, "model_registry.json")
+    
+    if not os.path.exists(REGISTRY_PATH):
+        print(f"Error: {REGISTRY_PATH} not found.")
+        return
+
+    with open(REGISTRY_PATH, 'r') as f:
+        registry = json.load(f)
+
+    for name in ACTIVE_MODELS:
+        if name not in registry:
+            continue
+            
+        best_config = registry[name]
+        best_file = os.path.join(FINAL_DIR, f"{name.lower()}_base.pth")
+
+        if not os.path.exists(best_file):
+            continue
+
+        model = get_model_instance(name, best_config).to(device)
+        model.load_state_dict(torch.load(best_file, map_location=device, weights_only=True))
+        
+        overview_images[name] = get_grid_example(model, name, device)
+    
+    if overview_images:
+        save_path = os.path.join(EVAL_DIR, "base_models_examples.png")
+        plot_example_grids(overview_images, save_path=save_path)
+
 if __name__ == "__main__":
-    pick_best_and_save()
+    plot_results_only()

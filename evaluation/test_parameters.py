@@ -29,7 +29,7 @@ ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"
 
 FORGET_EPOCHS = {
-    "VAE": 2,
+    "VAE": 5,
     "GAN": 5,
     "RectifiedFlow": 5,
     "Autoregressive": 5,
