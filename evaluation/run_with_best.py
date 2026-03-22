@@ -158,22 +158,13 @@ def run_best(active_models):
     logging.info(f"Start SA with best params.")
     for c in range(10):
         logging.info(f"Starting class {c}.")
-<<<<<<< HEAD
-        overview_images = generate_final_models(c)
-=======
-        overview_images[c] = generate_final_models(c, active_models)
->>>>>>> f6d4b20 (bugfix GAN mapping, main can now chose active models)
+        overview_images = generate_final_models(c, active_models)
 
         if overview_images:
             logging.info(f"Plot SA models examples.")
             plot_example_grids(overview_images, save_path=f"evaluation_data/SA_samples_{c}.png")
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    #run_best()
-    #generate_final_models(0)
+    # run_best()s
+    #generate_final_models(0, ACTIVE_MODELS)
     get_SA_sample(0)
-=======
-    # run_best()
-    generate_final_models(9, ACTIVE_MODELS)
->>>>>>> f6d4b20 (bugfix GAN mapping, main can now chose active models)
