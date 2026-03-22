@@ -29,16 +29,6 @@ TARGET_CLASS = 0
 ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"
 
-<<<<<<< HEAD
-FORGET_EPOCHS = {
-    "VAE": 5,
-    "GAN": 5,
-    "RectifiedFlow": 5,
-    "Autoregressive": 5,
-    "NVP": 5
-}
-=======
->>>>>>> f7a451de300332c517b786cacac1fe38d88eced5
 # FORGET_EPOCHS = {
 #     "VAE": 2,
 #     "GAN": 5,

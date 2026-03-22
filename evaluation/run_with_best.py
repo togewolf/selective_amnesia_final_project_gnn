@@ -58,7 +58,12 @@ def generate_final_models(target_class):
     loader = DataLoader(datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor()), 
                         batch_size=256, shuffle=True, num_workers=4, pin_memory=True)
     
-    with open(f"models/weights/optimized_model_registry_{target_class}.json", 'r') as f:
+    reg_path = f"models/weights/optimized_model_registry_{target_class}.json"
+    if not os.path.exists(reg_path):
+        print(f"Skipping Target {target_class}. No optimized registry.")
+        return
+
+    with open(reg_path, 'r') as f:
         registry = json.load(f)
 
     final_results = []
@@ -114,7 +119,9 @@ def generate_final_models(target_class):
 
     pd.DataFrame(final_results).to_csv(f"evaluation_data/final_results_target_{target_class}.csv", index=False)
 
-def plot_saved_unlearned_models(target_class):
+    return overview_images
+
+def get_SA_sample(target_class):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     REGISTRY_PATH = "models/weights/model_registry.json"
@@ -125,53 +132,39 @@ def plot_saved_unlearned_models(target_class):
     with open(REGISTRY_PATH, 'r') as f:
         registry = json.load(f)
 
-    ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
-    os.makedirs('evaluation_data/plots/grids', exist_ok=True)
+    all_models = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
+    
+    overview_images = {}
 
-    for name in ACTIVE_MODELS:
+    for name in all_models:
         weight_path = f"models/weights/after_SA/{name.lower()}_forgot_{target_class}.pth"
         
         if not os.path.exists(weight_path):
-            print(f"Skipping {name}: No saved weights found at {weight_path}")
+            print(f"Skipping {name}: No SA weights found at {weight_path}")
             continue
             
-        print(f"Plotting grid for {name} (Target: {target_class})...")
-        
         config = {k:v for k,v in registry[name].items() if k != "forgetting_config"}
         model = get_model_instance(name, config).to(device)
-        
         model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
-        model.eval()
         
-        samples_per_class = 10
-        labels = torch.arange(10).repeat_interleave(samples_per_class).to(device)
-        
-        with torch.no_grad():
-            images = model.generate(labels)
-            images = images.view(-1, 1, 28, 28).cpu()
-            images = torch.clamp(images, 0, 1)
+        overview_images[name] = get_grid_example(model, name, device)
 
-        grid = vutils.make_grid(images, nrow=samples_per_class, padding=2, normalize=True)
-        
-        plt.figure(figsize=(10, 10))
-        plt.imshow(grid.permute(1, 2, 0).numpy(), cmap='gray')
-        plt.axis('off')
-        plt.title(f"{name} Architecture - Target Digit '{target_class}' Unlearned", fontsize=16)
-        
-        save_path = f'evaluation_data/plots/grids/{name}_visual_verification_target_{target_class}.png'
-        plt.savefig(save_path, bbox_inches='tight')
-        plt.close()
+    if overview_images:
+        os.makedirs('evaluation_data', exist_ok=True)
+        save_path = f'evaluation_data/SA_samples_{target_class}.png'
+        plot_example_grids(overview_images, save_path=save_path)
 
 def run_best():
     logging.info(f"Start SA with best params.")
-    overview_images = {}
     for c in range(10):
         logging.info(f"Starting class {c}.")
-        overview_images[c] = generate_final_models(c)
+        overview_images = generate_final_models(c)
 
-    logging.info(f"Plot SA models examples.")
-    plot_example_grids(overview_images[0], save_path="evaluation_data/SA_models_examples.png")
+        if overview_images:
+            logging.info(f"Plot SA models examples.")
+            plot_example_grids(overview_images, save_path=f"evaluation_data/SA_samples_{c}.png")
 
 if __name__ == "__main__":
-    # run_best()
-    generate_final_models(9)
+    #run_best()
+    #generate_final_models(0)
+    get_SA_sample(0)
