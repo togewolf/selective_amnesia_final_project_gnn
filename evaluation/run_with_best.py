@@ -8,8 +8,13 @@ import json
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import logging
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import torchvision.utils as vutils
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if parent_dir not in sys.path:
@@ -24,6 +29,7 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 from models.autoregressive.autoregressive_model import compute_fisher_dict as compute_fisher_ar
 from scoring import get_oracle, evaluate_accuracy
 from check_architectures import get_grid_example, plot_example_grids
+
 
 
 TARGET_CLASS = 0
@@ -52,7 +58,7 @@ def generate_final_models(target_class):
     loader = DataLoader(datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor()), 
                         batch_size=256, shuffle=True, num_workers=4, pin_memory=True)
     
-    with open("models/weights/optimized_model_registry.json", 'r') as f:
+    with open(f"models/weights/optimized_model_registry_{target_class}.json", 'r') as f:
         registry = json.load(f)
 
     final_results = []
@@ -108,12 +114,64 @@ def generate_final_models(target_class):
 
     pd.DataFrame(final_results).to_csv(f"evaluation_data/final_results_target_{target_class}.csv", index=False)
 
+def plot_saved_unlearned_models(target_class):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    REGISTRY_PATH = "models/weights/model_registry.json"
+    if not os.path.exists(REGISTRY_PATH):
+        print(f"Error: Could not find registry at {REGISTRY_PATH}")
+        return
+        
+    with open(REGISTRY_PATH, 'r') as f:
+        registry = json.load(f)
+
+    ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
+    os.makedirs('evaluation_data/plots/grids', exist_ok=True)
+
+    for name in ACTIVE_MODELS:
+        weight_path = f"models/weights/after_SA/{name.lower()}_forgot_{target_class}.pth"
+        
+        if not os.path.exists(weight_path):
+            print(f"Skipping {name}: No saved weights found at {weight_path}")
+            continue
+            
+        print(f"Plotting grid for {name} (Target: {target_class})...")
+        
+        config = {k:v for k,v in registry[name].items() if k != "forgetting_config"}
+        model = get_model_instance(name, config).to(device)
+        
+        model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
+        model.eval()
+        
+        samples_per_class = 10
+        labels = torch.arange(10).repeat_interleave(samples_per_class).to(device)
+        
+        with torch.no_grad():
+            images = model.generate(labels)
+            images = images.view(-1, 1, 28, 28).cpu()
+            images = torch.clamp(images, 0, 1)
+
+        grid = vutils.make_grid(images, nrow=samples_per_class, padding=2, normalize=True)
+        
+        plt.figure(figsize=(10, 10))
+        plt.imshow(grid.permute(1, 2, 0).numpy(), cmap='gray')
+        plt.axis('off')
+        plt.title(f"{name} Architecture - Target Digit '{target_class}' Unlearned", fontsize=16)
+        
+        save_path = f'evaluation_data/plots/grids/{name}_visual_verification_target_{target_class}.png'
+        plt.savefig(save_path, bbox_inches='tight')
+        plt.close()
+
 def run_best():
+    logging.info(f"Start SA with best params.")
     overview_images = {}
     for c in range(10):
+        logging.info(f"Starting class {c}.")
         overview_images[c] = generate_final_models(c)
 
-    plot_example_grids(overview_images, save_path="evaluation_data/SA_models_examples.png")
+    logging.info(f"Plot SA models examples.")
+    plot_example_grids(overview_images[0], save_path="evaluation_data/SA_models_examples.png")
 
 if __name__ == "__main__":
-    run_best()
+    # run_best()
+    generate_final_models(9)

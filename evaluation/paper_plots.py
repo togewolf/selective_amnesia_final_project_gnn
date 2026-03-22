@@ -67,45 +67,19 @@ def parameter_trend_plot(RESULTS_CSV=RESULTS_CSV, target_class=TARGET_CLASS):
 
 
 
-def heatmap_plot(RESULTS_CSV=RESULTS_CSV):
-    df = pd.read_csv(RESULTS_CSV)
+def heatmap_plot(target_class=TARGET_CLASS):
+    csv_path = f'evaluation_data/final_results_target_{target_class}.csv'
+    
+    if not os.path.exists(csv_path):
+        print(f"Error: {csv_path} not found. Run generate_final_models first.")
+        return
 
-    target_after_col = f'digit_{TARGET_CLASS}_after'
-    before_cols = [f'digit_{i}_before' for i in range(10)]
-    retention_cols = [f'digit_{i}_after' for i in range(10) if i != TARGET_CLASS]
-
-    baseline_threshold = 0.85
-    forgot_threshold = 0.05
-
-    best_reps = []
-
-    for model in df['Model'].unique():
-        m_df = df[df['Model'] == model].copy()
-        
-        quality_mask = (m_df[before_cols] >= baseline_threshold).all(axis=1)
-        m_df_qualified = m_df[quality_mask].copy()
-        
-        if m_df_qualified.empty:
-            print(f"Warning: No runs for {model} met the baseline quality of {baseline_threshold}.")
-            m_df_qualified = m_df
-            print("  Using non-qualified data as a fallback.")
-
-        successes = m_df_qualified[m_df_qualified[target_after_col] <= forgot_threshold].copy()
-        
-        if successes.empty:
-            best_run = m_df_qualified.loc[m_df_qualified[target_after_col].idxmin()]
-        else:
-            successes['mean_retention'] = successes[retention_cols].mean(axis=1)
-            best_run = successes.loc[successes['mean_retention'].idxmax()]
-        
-        best_reps.append(best_run)
-
-    best_df = pd.DataFrame(best_reps)
+    df = pd.read_csv(csv_path)
 
     delta_data = []
     model_labels = []
 
-    for _, row in best_df.iterrows():
+    for _, row in df.iterrows():
         deltas = [row[f'digit_{i}_after'] - row[f'digit_{i}_before'] for i in range(10)]
         delta_data.append(deltas)
         model_labels.append(f"{row['Model']}")
@@ -123,14 +97,14 @@ def heatmap_plot(RESULTS_CSV=RESULTS_CSV):
                 linewidths=.5,
                 cbar_kws={'label': r'$\Delta$ Accuracy'})
 
-    plt.title(f'Accuracy after SA for all Digits (Target: Digit {TARGET_CLASS})', fontsize=14)
+    plt.title(f'Accuracy after SA for all Digits (Target: Digit {target_class})', fontsize=14)
     plt.ylabel('Model', fontsize=12)
     plt.xlabel('MNIST Classes', fontsize=12)
     
     plt.tight_layout()
-    plt.savefig(f'evaluation_data/plots/heatmap_{TARGET_CLASS}.png', dpi=300)
-
-    for _, row in best_df.iterrows():
+    plt.savefig(f'evaluation_data/plots/heatmap_{target_class}.png', dpi=300)
+    
+    for _, row in df.iterrows():
         gamma = row.get('gamma', '-')
         lmbda = row.get('lmbda', '-')
         loss = row.get('loss_type', '-')
@@ -138,46 +112,30 @@ def heatmap_plot(RESULTS_CSV=RESULTS_CSV):
         
         retention = np.mean([row[f'digit_{i}_after'] for i in range(10) if i != TARGET_CLASS])
         
-        print(f'[{row["Model"]}], [{gamma}], [{lmbda}], [{loss}],[{lr}], [{row[target_after_col]:.3f}], [{retention:.3f}],')
+        print(f'[{row["Model"]}], [{gamma}], [{lmbda}], [{loss}],[{lr}], [{row[f"digit_{TARGET_CLASS}_after"]:.3f}], [{retention:.3f}],')
 
 def get_best_runs_across_all_targets():
     all_best_runs = []
     
     for target_class in range(10):
-        csv_path = CSV_FOLDER + f'/results_target_{target_class}.csv'
+        csv_path = f'evaluation_data/final_results_target_{target_class}.csv'
+        
         if not os.path.exists(csv_path):
-            print(f"Skipping Target {target_class}: File not found.")
+            print(f"Skipping Target {target_class}: Final file not found.")
             continue
             
         df = pd.read_csv(csv_path)
-        target_after_col = f'digit_{target_class}_after'
-        before_cols = [f'digit_{i}_before' for i in range(10)]
-        retention_cols = [f'digit_{i}_after' for i in range(10) if i != target_class]
+        
+        df['Target_Accuracy_After'] = df['Final_Target_Acc']
+        
+        all_best_runs.append(df)
 
-        baseline_threshold = 0.85
-        forgot_threshold = 0.05
+    if not all_best_runs:
+        return pd.DataFrame()
+        
+    return pd.concat(all_best_runs, ignore_index=True)
 
-        for model in df['Model'].unique():
-            m_df = df[df['Model'] == model].copy()
-            quality_mask = (m_df[before_cols] >= baseline_threshold).all(axis=1)
-            m_df_qualified = m_df[quality_mask].copy()
-            
-            if m_df_qualified.empty:
-                m_df_qualified = m_df # Fallback
 
-            successes = m_df_qualified[m_df_qualified[target_after_col] <= forgot_threshold].copy()
-            
-            if successes.empty:
-                best_run = m_df_qualified.loc[m_df_qualified[target_after_col].idxmin()].copy()
-            else:
-                successes['mean_retention'] = successes[retention_cols].mean(axis=1)
-                best_run = successes.loc[successes['mean_retention'].idxmax()].copy()
-            
-            best_run['Target_Class'] = target_class
-            best_run['Target_Accuracy_After'] = best_run[target_after_col]
-            all_best_runs.append(best_run)
-
-    return pd.DataFrame(all_best_runs)
 def stability_boxplot():
     """
     Creates a box plot showing the variance of target forgetting accuracy 
@@ -207,8 +165,6 @@ def stability_boxplot():
     plt.tight_layout()
     save_path = 'evaluation_data/plots/stability_boxplot_master.png'
     plt.savefig(save_path, dpi=300)
-    print(f"Saved Master Boxplot to {save_path}")
-
 
 def entanglement_matrix(model_name='GAN'):
 

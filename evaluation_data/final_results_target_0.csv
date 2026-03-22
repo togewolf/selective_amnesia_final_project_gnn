@@ -1,0 +1,2 @@
+Model,Target_Class,Final_Target_Acc,Final_Retained_Drop,loss_type,lr,gamma,lmbda,digit_0_before,digit_0_after,digit_1_before,digit_1_after,digit_2_before,digit_2_after,digit_3_before,digit_3_after,digit_4_before,digit_4_after,digit_5_before,digit_5_after,digit_6_before,digit_6_after,digit_7_before,digit_7_after,digit_8_before,digit_8_after,digit_9_before,digit_9_after
+GAN,0,0.438,0.13366666666666666,smooth_l1,0.0001,0.1,-,0.99,0.438,1.0,0.978,1.0,0.934,0.99,0.966,0.76,0.586,0.995,0.886,0.87,0.642,0.97,0.3,0.835,1.0,0.995,0.92
