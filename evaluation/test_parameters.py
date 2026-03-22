@@ -7,6 +7,7 @@ import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import logging
 import json
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -28,20 +29,20 @@ TARGET_CLASS = 0
 ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 # "VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"
 
-FORGET_EPOCHS = {
-    "VAE": 2,
-    "GAN": 5,
-    "RectifiedFlow": 5,
-    "Autoregressive": 5,
-    "NVP": 5
-}
 # FORGET_EPOCHS = {
-#     "VAE": 5,
-#     "GAN": 40,
-#     "RectifiedFlow": 15,
-#     "Autoregressive": 20,
-#     "NVP": 10
+#     "VAE": 2,
+#     "GAN": 5,
+#     "RectifiedFlow": 5,
+#     "Autoregressive": 5,
+#     "NVP": 5
 # }
+FORGET_EPOCHS = {
+    "VAE": 5,
+    "GAN": 40,
+    "RectifiedFlow": 15,
+    "Autoregressive": 20,
+    "NVP": 10
+}
 
 PARAMETERS = {
     "GAN": {
@@ -111,7 +112,15 @@ def run_optimization(target_class=TARGET_CLASS):
     
     output_file = f"evaluation_data/results_target_{target_class}.csv"
     os.makedirs("evaluation_data", exist_ok=True)
-    optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
+    output_file = f"evaluation_data/results_target_{target_class}.csv"
+    os.makedirs("evaluation_data", exist_ok=True)
+    
+    registry_path = f"models/weights/optimized_model_registry_{target_class}.json"
+    if os.path.exists(registry_path):
+        with open(registry_path, 'r') as f:
+            optimized_registry = json.load(f)
+    else:
+        optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
 
     all_results = []
     
@@ -201,14 +210,16 @@ def run_optimization(target_class=TARGET_CLASS):
 
         if name in optimized_registry:
             optimized_registry[name]["forgetting_config"] = best_params
-        with open("models/weights/optimized_model_registry.json", "w") as f:
+        with open(f"models/weights/optimized_model_registry_{target_class}.json", "w") as f:
             json.dump(optimized_registry, f, indent=4)
         print(f"Finished {name}.")
         
     optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
 
 def run_all_target_classes():
+    logging.info(f"Start parameter test.")
     for c in range(0,9):
+        logging.info(f"Start class {c}.")
         run_optimization(target_class=c)
 
 if __name__ == "__main__":
