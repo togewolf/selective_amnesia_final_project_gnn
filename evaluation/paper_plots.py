@@ -5,6 +5,16 @@ import numpy as np
 import os
 import logging
 
+plt.rcParams.update({
+    'font.size': 15,
+    'axes.titlesize': 18,
+    'axes.labelsize': 16,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
+    'legend.fontsize': 16,
+    'figure.titlesize': 20
+})
+
 TARGET_CLASS = 0
 CSV_FOLDER = 'evaluation_data'
 RESULTS_CSV = f'evaluation_data/results_target_{TARGET_CLASS}.csv'
@@ -35,28 +45,28 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
     if 'gamma' in df.columns:
         sns.lineplot(data=df, x='gamma', y=target_col, ax=axes[0], **line_kwargs)
         axes[0].set_xscale('log')
-        axes[0].set_title(f'Trend: Gamma (Target: {target_class})')
+        axes[0].set_title(f'Trend: Gamma (Target: {target_class})\n')
         axes[0].set_xlabel('Gamma (Replay Strength)')
 
     if 'lmbda' in df.columns:
         df_no_gan = df[df['Model'] != 'GAN']
         sns.lineplot(data=df_no_gan, x='lmbda', y=target_col, ax=axes[1], **line_kwargs)
         axes[1].set_xscale('log')
-        axes[1].set_title(f'Trend: Lambda (Target: {target_class})')
+        axes[1].set_title(f'Trend: Lambda (Target: {target_class})\n')
         axes[1].set_xlabel('Lambda (Weight Protection)')
 
     if 'loss_type' in df.columns:
         sns.pointplot(data=df, x='loss_type', y=target_col, hue='Model', 
                       palette=palette, dodge=0.4, linestyles="", markers='D', 
                       errorbar=None, ax=axes[2])
-        axes[2].set_title(f'Trend: Loss Function')
+        axes[2].set_title(f'Trend: Loss Function\n')
         axes[2].set_xlabel('SA Loss Type')
-        axes[2].legend(title='Model', loc='best', frameon=False, fontsize=12)
+        axes[2].legend(title='Model', loc='best', frameon=False)
 
     if 'lr' in df.columns:
         sns.lineplot(data=df, x='lr', y=target_col, ax=axes[3], **line_kwargs)
         axes[3].set_xscale('log')
-        axes[3].set_title(f'Trend: Learning Rate')
+        axes[3].set_title(f'Trend: Learning Rate\n')
         axes[3].set_xlabel('Learning Rate')
 
     for ax in axes:
@@ -98,9 +108,9 @@ def heatmap_plot(csv_path=FINAL_BEST_CSV, target_class=TARGET_CLASS):
                 linewidths=.5,
                 cbar_kws={'label': r'$\Delta$ Accuracy'})
 
-    plt.title(f'Accuracy after SA for all Digits (Target: Digit {target_class})', fontsize=14)
-    plt.ylabel('Model', fontsize=12)
-    plt.xlabel('MNIST Classes', fontsize=12)
+    plt.title(f'Accuracy after SA for all Digits (Target: Digit {target_class})\n')
+    plt.ylabel('Model')
+    plt.xlabel('MNIST Classes')
     
     plt.tight_layout()
     plt.savefig(f'evaluation_data/plots/heatmap_{target_class}.png', dpi=300)
@@ -152,9 +162,9 @@ def stability_boxplot(best_csv_path=FINAL_BEST_CSV):
     sns.swarmplot(data=master_df, x='Model', y='Target_Accuracy_After', 
                   color=".25", size=6, alpha=0.7)
 
-    plt.title('Unlearning Stability Across All MNIST Classes (Lower is Better)', fontsize=14, pad=15)
-    plt.ylabel('Target Class Accuracy After SA', fontsize=12)
-    plt.xlabel('Model', fontsize=12)
+    plt.title('Unlearning Stability Across All MNIST Classes (Lower is Better)\n', pad=15)
+    plt.ylabel('Target Class Accuracy After SA')
+    plt.xlabel('Model')
     plt.axhline(0.05, ls='--', color='green', alpha=0.5, label='Perfect Forgetting Threshold (0.05)')
     plt.legend()
     
@@ -202,9 +212,9 @@ def entanglement_matrix(model_name='GAN', best_csv_path=FINAL_BEST_CSV):
                 linewidths=.5,
                 cbar_kws={'label': r'$\Delta$ Accuracy (Negative = Forgotten)'})
 
-    plt.title(f'Entanglement Strength Matrix: {model_name}', fontsize=16, pad=15)
-    plt.ylabel('Target MNIST Classe', fontsize=12)
-    plt.xlabel('All MNIST Classes', fontsize=12)
+    plt.title(f'Entanglement Strength Matrix: {model_name}\n', pad=15)
+    plt.ylabel('Target MNIST Classe')
+    plt.xlabel('All MNIST Classes')
     
     ax = plt.gca()
     for i in range(10):
