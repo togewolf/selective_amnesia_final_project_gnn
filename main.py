@@ -26,10 +26,12 @@ def main():
     # training()
     # pick_best_and_save()
 
+    ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
+
     # SA
     logging.info(f"Start")
-    run_all_target_classes()
-    run_best()
+    run_all_target_classes(ACTIVE_MODELS)
+    run_best(ACTIVE_MODELS)
     logging.info(f"Stop.")
 
 

@@ -116,16 +116,16 @@ class ConditionalGAN(nn.Module):
         z_forget = torch.randn(batch_size, self.latent_dim, device=device)
         gen_forget = self.generator(z_forget, c_forget)
 
-        # 1. Corrupting Phase (Selective Amnesia modes)
+        fake_target = (target_class + 1) % 10
+
         if loss_type == "l1":
-            # Targeted: Force class to look like '8's
-            c_target_spoof = torch.full((batch_size,), 8, dtype=torch.long, device=device)
+            c_target_spoof = torch.full((batch_size,), fake_target, dtype=torch.long, device=device)
             with torch.no_grad():
                 spoof_imgs = frozen_model.generator(z_forget, c_target_spoof)
             loss_corrupt = 50.0 * F.l1_loss(gen_forget, spoof_imgs)
             
         elif loss_type == "smooth_l1":
-            c_target_spoof = torch.full((batch_size,), 8, dtype=torch.long, device=device)
+            c_target_spoof = torch.full((batch_size,), fake_target, dtype=torch.long, device=device)
             with torch.no_grad():
                 spoof_imgs = frozen_model.generator(z_forget, c_target_spoof)
             loss_corrupt = 50.0 * F.smooth_l1_loss(gen_forget, spoof_imgs, beta=0.1)

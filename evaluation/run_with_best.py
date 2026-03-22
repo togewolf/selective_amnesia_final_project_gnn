@@ -52,7 +52,7 @@ def get_model_instance(name, config):
     if name == "Autoregressive": return ConditionalMADE(**config)
     return None
 
-def generate_final_models(target_class):
+def generate_final_models(target_class, active_models=ACTIVE_MODELS):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     oracle = get_oracle(device)
     loader = DataLoader(datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor()), 
@@ -70,7 +70,7 @@ def generate_final_models(target_class):
     MAX_BATCHES_PER_EPOCH = 50
 
     overview_images = {}
-    for name in ACTIVE_MODELS:
+    for name in active_models:
         if name not in registry or "forgetting_config" not in registry[name]:
             print(f"Skipping {name}: No optimized parameters found in registry.")
             continue
@@ -154,17 +154,26 @@ def get_SA_sample(target_class):
         save_path = f'evaluation_data/SA_samples_{target_class}.png'
         plot_example_grids(overview_images, save_path=save_path)
 
-def run_best():
+def run_best(active_models):
     logging.info(f"Start SA with best params.")
     for c in range(10):
         logging.info(f"Starting class {c}.")
+<<<<<<< HEAD
         overview_images = generate_final_models(c)
+=======
+        overview_images[c] = generate_final_models(c, active_models)
+>>>>>>> f6d4b20 (bugfix GAN mapping, main can now chose active models)
 
         if overview_images:
             logging.info(f"Plot SA models examples.")
             plot_example_grids(overview_images, save_path=f"evaluation_data/SA_samples_{c}.png")
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     #run_best()
     #generate_final_models(0)
     get_SA_sample(0)
+=======
+    # run_best()
+    generate_final_models(9, ACTIVE_MODELS)
+>>>>>>> f6d4b20 (bugfix GAN mapping, main can now chose active models)

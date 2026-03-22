@@ -104,7 +104,7 @@ def calculate_amnesia_score(target_acc_after, retained_drop):
     return forgetting_success - (retained_drop * 2.0)
 
 
-def run_optimization(target_class=TARGET_CLASS):
+def run_optimization(target_class=TARGET_CLASS, active_models=ACTIVE_MODELS):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     oracle = get_oracle(device)
     loader = DataLoader(datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor()), 
@@ -126,7 +126,7 @@ def run_optimization(target_class=TARGET_CLASS):
     
     MAX_BATCHES_PER_EPOCH = 20
 
-    for name in ACTIVE_MODELS:
+    for name in active_models:
         print(f"--- Optimizing {name} ---")
         
         base_path = f"models/weights/{name.lower()}_base.pth"
@@ -216,11 +216,11 @@ def run_optimization(target_class=TARGET_CLASS):
         
     optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
 
-def run_all_target_classes():
+def run_all_target_classes(active_models):
     logging.info(f"Start parameter test.")
     for c in range(0,9):
         logging.info(f"Start class {c}.")
-        run_optimization(target_class=c)
+        run_optimization(target_class=c, active_models)
 
 if __name__ == "__main__":
-    run_all_target_classes()
+    run_all_target_classes(active_models)
