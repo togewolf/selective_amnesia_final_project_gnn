@@ -103,6 +103,13 @@ def calculate_amnesia_score(target_acc_after, retained_drop):
     forgetting_success = 1.0 - target_acc_after
     return forgetting_success - (retained_drop * 2.0)
 
+def deep_update(base, saved):
+    for key, value in saved.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            deep_update(base[key], value)
+        else:
+            base[key] = value
+    return base
 
 def run_optimization(target_class=TARGET_CLASS, active_models=ACTIVE_MODELS):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,11 +123,13 @@ def run_optimization(target_class=TARGET_CLASS, active_models=ACTIVE_MODELS):
     os.makedirs("evaluation_data", exist_ok=True)
     
     registry_path = f"models/weights/optimized_model_registry_{target_class}.json"
+    optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
+
     if os.path.exists(registry_path):
         with open(registry_path, 'r') as f:
-            optimized_registry = json.load(f)
-    else:
-        optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
+            saved_data = json.load(f)
+        
+        optimized_registry = deep_update(optimized_registry, saved_data)
 
     all_results = []
     
@@ -216,11 +225,11 @@ def run_optimization(target_class=TARGET_CLASS, active_models=ACTIVE_MODELS):
         
     optimized_registry = copy.deepcopy(ARCHITECTURE_REGISTRY)
 
-def run_all_target_classes(active_models):
+def run_all_target_classes(active_models, target_classes=range(0,9)):
     logging.info(f"Start parameter test.")
-    for c in range(0,9):
+    for c in target_classes:
         logging.info(f"Start class {c}.")
-        run_optimization(target_class=c, active_models)
+        run_optimization(target_class=c, active_models=active_models)
 
 if __name__ == "__main__":
-    run_all_target_classes(active_models)
+    run_all_target_classes(ACTIVE_MODELS)

@@ -154,9 +154,9 @@ def get_SA_sample(target_class):
         save_path = f'evaluation_data/SA_samples_{target_class}.png'
         plot_example_grids(overview_images, save_path=save_path)
 
-def run_best(active_models):
+def run_best(active_models, target_classes=range(0,9)):
     logging.info(f"Start SA with best params.")
-    for c in range(10):
+    for c in target_classes:
         logging.info(f"Starting class {c}.")
         overview_images = generate_final_models(c, active_models)
 
@@ -165,6 +165,6 @@ def run_best(active_models):
             plot_example_grids(overview_images, save_path=f"evaluation_data/SA_samples_{c}.png")
 
 if __name__ == "__main__":
-    # run_best()s
+    # run_best()
     #generate_final_models(0, ACTIVE_MODELS)
     get_SA_sample(0)

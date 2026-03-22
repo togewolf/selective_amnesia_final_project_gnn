@@ -3,14 +3,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+import logging
 
 TARGET_CLASS = 0
-CSV_FOLDER = 'evaluation_data_backup/fake_for_test'
-RESULTS_CSV = f'evaluation_data_backup/fake_for_test/results_target_{TARGET_CLASS}.csv'
+CSV_FOLDER = 'evaluation_data'
+RESULTS_CSV = f'evaluation_data/results_target_{TARGET_CLASS}.csv'
+FINAL_BEST_CSV = f'evaluation_data/final_results_target_{TARGET_CLASS}.csv'
 
-def parameter_trend_plot(RESULTS_CSV=RESULTS_CSV, target_class=TARGET_CLASS):
+def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
     os.makedirs('evaluation_data', exist_ok=True)
-    df = pd.read_csv(RESULTS_CSV)
+    df = pd.read_csv(results_csv)
     target_col = f'digit_{target_class}_after'
 
     unique_models = sorted(df['Model'].unique())
@@ -67,9 +69,8 @@ def parameter_trend_plot(RESULTS_CSV=RESULTS_CSV, target_class=TARGET_CLASS):
 
 
 
-def heatmap_plot(target_class=TARGET_CLASS):
-    csv_path = f'evaluation_data/final_results_target_{target_class}.csv'
-    
+def heatmap_plot(csv_path=FINAL_BEST_CSV, target_class=TARGET_CLASS):
+
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found. Run generate_final_models first.")
         return
@@ -114,14 +115,13 @@ def heatmap_plot(target_class=TARGET_CLASS):
         
         print(f'[{row["Model"]}], [{gamma}], [{lmbda}], [{loss}],[{lr}], [{row[f"digit_{TARGET_CLASS}_after"]:.3f}], [{retention:.3f}],')
 
-def get_best_runs_across_all_targets():
+def get_best_runs_across_all_targets(csv_path=FINAL_BEST_CSV):
     all_best_runs = []
     
     for target_class in range(10):
-        csv_path = f'evaluation_data/final_results_target_{target_class}.csv'
         
         if not os.path.exists(csv_path):
-            print(f"Skipping Target {target_class}: Final file not found.")
+            logging.warning(f"Skipping Target {target_class}.")
             continue
             
         df = pd.read_csv(csv_path)
@@ -136,13 +136,9 @@ def get_best_runs_across_all_targets():
     return pd.concat(all_best_runs, ignore_index=True)
 
 
-def stability_boxplot():
-    """
-    Creates a box plot showing the variance of target forgetting accuracy 
-    across all 10 digits for each architecture.
-    """
+def stability_boxplot(best_csv_path=FINAL_BEST_CSV):
     os.makedirs('evaluation_data/plots', exist_ok=True)
-    master_df = get_best_runs_across_all_targets()
+    master_df = get_best_runs_across_all_targets(best_csv_path)
     
     if master_df.empty:
         print("No data found to plot.")
@@ -166,10 +162,10 @@ def stability_boxplot():
     save_path = 'evaluation_data/plots/stability_boxplot_master.png'
     plt.savefig(save_path, dpi=300)
 
-def entanglement_matrix(model_name='GAN'):
+def entanglement_matrix(model_name='GAN', best_csv_path=FINAL_BEST_CSV):
 
     os.makedirs('evaluation_data/plots', exist_ok=True)
-    master_df = get_best_runs_across_all_targets()
+    master_df = get_best_runs_across_all_targets(best_csv_path)
     
     if master_df.empty:
         return
@@ -217,6 +213,27 @@ def entanglement_matrix(model_name='GAN'):
     plt.tight_layout()
     save_path = f'evaluation_data/plots/entanglement_matrix_{model_name}.png'
     plt.savefig(save_path, dpi=300)
+
+
+def plot_all(target_classes=range(10)):
+    models = ["GAN", "Autoregressive", "VAE", "RectifiedFlow", "NVP"]
+    
+    for c in target_classes:
+        res = f'evaluation_data/results_target_{c}.csv'
+        best = f'evaluation_data/final_results_target_{c}.csv'
+        
+        missing = [f for f in [res, best] if not os.path.exists(f)]
+        if missing:
+            logging.warning(f"Target {c}: Missing files {missing}")
+            continue
+
+        logging.info(f"Generating plots for target {c}")
+        parameter_trend_plot(res, c)
+        heatmap_plot(best, c)
+        stability_boxplot(best)
+    
+    for model in models:
+        entanglement_matrix(model_name=model)
 
 if __name__ == "__main__":
     parameter_trend_plot()
