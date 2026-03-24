@@ -86,7 +86,7 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
 
 
     plt.tight_layout()
-    plt.title(f"Parameter Trends for Target Class {target_class}")
+    plt.suptitle(f"Parameter Trends for Target Class {target_class}", fontweight='bold', y=1.05)
     plt.savefig(f'evaluation_data/plots/trends_{target_class}_grid.png', bbox_inches='tight')
 
 def combined_parameter_trend_plot():
@@ -209,6 +209,84 @@ def heatmap_plot(csv_path=FINAL_BEST_CSV, target_class=TARGET_CLASS):
     plt.tight_layout()
     plt.savefig(f'evaluation_data/plots/heatmap_{target_class}.png', dpi=300)
     
+def plot_optimization_traps():
+    edge_cases = [
+        {"model": "VAE", "target": 4},
+        {"model": "RectifiedFlow", "target": 8},
+        {"model": "RectifiedFlow", "target": 0} # as guideline
+    ]
+    
+    comparison_data = []
+
+    for case in edge_cases:
+        model = case["model"]
+        c = case["target"]
+        
+        raw_csv = f'evaluation_data/results_target_{c}.csv'
+        final_csv = f'evaluation_data/final_results_target_{c}.csv'
+        
+        if not (os.path.exists(raw_csv) and os.path.exists(final_csv)):
+            continue
+            
+        raw_df = pd.read_csv(raw_csv)
+        final_df = pd.read_csv(final_csv)
+        
+        target_col = f'digit_{c}_after'
+        
+        m_final = final_df[final_df['Model'] == model]
+        if m_final.empty: continue
+        
+        chosen_acc = m_final.iloc[0]['Final_Target_Acc']
+        chosen_drop = m_final.iloc[0]['Final_Retained_Drop']
+        
+        m_raw = raw_df[raw_df['Model'] == model]
+        if m_raw.empty: continue
+        
+        min_idx = m_raw[target_col].idxmin()
+        abs_best_acc = m_raw.loc[min_idx, target_col]
+        abs_best_drop = m_raw.loc[min_idx, 'Avg Retained Drop']
+        
+        label = f"{model}\n(Target {c})"
+        
+        comparison_data.append({
+            'Case': label,
+            'Selection': 'Scoring Metric Choice',
+            'Target Accuracy': chosen_acc,
+            'Retained Drop': chosen_drop
+        })
+        comparison_data.append({
+            'Case': label,
+            'Selection': 'Lowest Target Acc',
+            'Target Accuracy': abs_best_acc,
+            'Retained Drop': abs_best_drop
+        })
+
+    comp_df = pd.DataFrame(comparison_data)
+    if comp_df.empty: return
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    
+    sns.barplot(data=comp_df, x='Case', y='Target Accuracy', hue='Selection', 
+                ax=axes[0], palette=["#7a3a9f", "#d67327"], errorbar=None)
+    axes[0].set_title('Target Accuracy')
+    axes[0].set_ylabel('Target Class Accuracy')
+    axes[0].axhline(0.05, ls='--', color='black', alpha=0.5)
+    axes[0].get_legend().remove()
+    
+    sns.barplot(data=comp_df, x='Case', y='Retained Drop', hue='Selection', 
+                ax=axes[1], palette=['#7a3a9f', '#d67327'], errorbar=None)
+    axes[1].set_title('Catastrophic Forgetting')
+    axes[1].set_ylabel('Average Accuracy Drop on Retained')
+    axes[1].invert_yaxis()
+    
+    plt.suptitle('Best Parameter Metric Evaluation', fontweight='bold', y=1.05)
+    plt.tight_layout()
+    
+    save_path = 'evaluation_data/plots/optimization_trap_cases.png'
+    os.makedirs('evaluation_data/plots', exist_ok=True)
+    plt.savefig(save_path, bbox_inches='tight', dpi=300)
+    plt.close()
+
 def get_best_runs_across_all_targets():
     all_best_runs = []
     
@@ -253,11 +331,11 @@ def stability_boxplot():
         data=master_df, 
         x='Model', 
         y='Target_Accuracy_After', 
-        color=".25", 
+        color=".5", 
         size=6, 
         alpha=0.7,
     )
-    datapoints_handle = mlines.Line2D([], [], color='.25', marker='o', linestyle='None',markersize=6, alpha=0.7, label='Class Accuracy')
+    datapoints_handle = mlines.Line2D([], [], color='.5', marker='o', linestyle='None',markersize=6, alpha=0.7, label='Class Accuracy')
     threshold_line = plt.axhline(0.05, ls='--', color='green', alpha=0.5, label='Forgetting Threshold')    
 
     plt.legend(handles=[datapoints_handle, threshold_line], 
@@ -265,9 +343,8 @@ def stability_boxplot():
             frameon=True,
             fontsize=12)
 
-    plt.title('Unlearning Stability Across All MNIST Classes\n(Lower Accuracy = Better Forgetting)', pad=15)
+    plt.title('Unlearning Stability Across All MNIST Classes', pad=15)
     plt.ylabel('Target Class Accuracy After SA')
-    plt.yscale("log")
     plt.grid(axis='y', linestyle='--', alpha=0.3)
     plt.tight_layout()
     plt.savefig('evaluation_data/plots/stability_boxplot_master.png', dpi=300)
@@ -376,9 +453,10 @@ def plot_all(target_classes=range(10)):
 
 if __name__ == "__main__":
     #plot_all(range(10))
-    #stability_boxplot()
+    stability_boxplot()
     for c in range(10):
         res = f'evaluation_data/results_target_{c}.csv'
         parameter_trend_plot(res, c)
-    # master_target_accuracy_heatmap()
+    master_target_accuracy_heatmap()
     combined_parameter_trend_plot()
+    plot_optimization_traps()

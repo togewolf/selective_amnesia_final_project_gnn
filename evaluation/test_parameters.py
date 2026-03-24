@@ -47,7 +47,7 @@ FORGET_EPOCHS = {
 PARAMETERS = {
     "GAN": {
         "loss_type": ["l1", "smooth_l1"], 
-        "lr": [1e-5, 5e-5, 1e-4],
+        "lr": [1e-4, 5e-4, 1e-3], 
         "gamma": [0.0001,0.001,0.01, 0.1],
         "lmbda": ["-"] # placeholder unused.
     },

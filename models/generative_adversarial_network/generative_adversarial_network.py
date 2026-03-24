@@ -65,11 +65,10 @@ class ConditionalGAN(nn.Module):
         self.adversarial_loss = torch.nn.BCEWithLogitsLoss()
 
     def generate(self, y):
-        """Generates images scaled to [-1, 1] for Oracle evaluation"""
+        """Generates images scaled to [0, 1]"""
         device = y.device
         z = torch.randn(y.size(0), self.latent_dim, device=device)
-        generated_imgs = self.generator(z, y)
-        return (generated_imgs * 2.0) - 1.0
+        return self.generator(z, y)
 
     def train_step(self, x, y):
         device = x.device
