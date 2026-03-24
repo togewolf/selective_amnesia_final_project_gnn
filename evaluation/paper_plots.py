@@ -40,20 +40,19 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
         'errorbar': None,
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
     axes = axes.flatten()
 
     if 'gamma' in df.columns:
         sns.lineplot(data=df, x='gamma', y=target_col, ax=axes[0], **line_kwargs)
         axes[0].set_xscale('log')
-        axes[0].set_title(f'Trend: Gamma (Target: {target_class})\n')
-        axes[0].set_xlabel('Gamma (Replay Strength)')
+        axes[0].set_xlabel('Gamma (Forgetting Strength)')
 
     if 'lmbda' in df.columns:
         df_no_gan = df[df['Model'] != 'GAN']
         sns.lineplot(data=df_no_gan, x='lmbda', y=target_col, ax=axes[1], legend=True, **line_kwargs)
         axes[1].set_xscale('log')
-        axes[1].set_title(f'Trend: Lambda (Target: {target_class})\n')
+        axes[1].set_xlabel('Lambda (Weight Protection)')
         axes[1].legend(title='Model', loc='best', frameon=False)
 
     
@@ -72,7 +71,6 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
             errorbar=None, 
             ax=axes[2]
         )
-        axes[2].set_title(f'Trend: Loss Function\n')
         axes[2].set_xlabel('SA Loss Type')
         axes[2].legend(title='Model', loc='best', frameon=False)
 
@@ -80,7 +78,6 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
     if 'lr' in df.columns:
         sns.lineplot(data=df, x='lr', y=target_col, ax=axes[3], **line_kwargs)
         axes[3].set_xscale('log')
-        axes[3].set_title(f'Trend: Learning Rate\n')
         axes[3].set_xlabel('Learning Rate')
 
     for ax in axes:
@@ -89,8 +86,91 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
 
 
     plt.tight_layout()
+    plt.title(f"Parameter Trends for Target Class {target_class}")
     plt.savefig(f'evaluation_data/plots/trends_{target_class}_grid.png', bbox_inches='tight')
 
+def combined_parameter_trend_plot():
+    os.makedirs('evaluation_data/plots', exist_ok=True)
+    
+    all_dfs = []
+    for c in range(10):
+        csv_path = f'evaluation_data/results_target_{c}.csv' 
+        
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            target_col = f'digit_{c}_after'
+            if target_col in df.columns:
+                df['Target_Accuracy_After'] = df[target_col]
+                df['Target_Class'] = c
+                all_dfs.append(df)
+            
+    if not all_dfs:
+        return
+        
+    master_df = pd.concat(all_dfs, ignore_index=True)
+
+    unique_models = sorted(master_df['Model'].unique())
+    palette = dict(zip(unique_models, sns.color_palette("tab10", len(unique_models))))
+    marker_map = dict(zip(unique_models, ['D', 's', 'o', '^', 'v'][:len(unique_models)]))
+
+    line_kwargs = {
+        'hue': 'Model',
+        'style': 'Model',
+        'palette': palette,
+        'markers': marker_map,
+        'lw': 3,
+        'alpha': 0.7,
+        'errorbar': ('ci', 95), 
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+    axes = axes.flatten()
+
+    if 'gamma' in master_df.columns:
+        sns.lineplot(data=master_df, x='gamma', y='Target_Accuracy_After', ax=axes[0], **line_kwargs)
+        axes[0].set_xscale('log')
+        axes[0].set_xlabel('Gamma (Forgetting Strength)')
+
+    if 'lmbda' in master_df.columns:
+        df_no_gan = master_df[master_df['Model'] != 'GAN'].copy()
+        df_no_gan['lmbda'] = pd.to_numeric(df_no_gan['lmbda'], errors='coerce')
+        sns.lineplot(data=df_no_gan, x='lmbda', y='Target_Accuracy_After', ax=axes[1], legend=True, **line_kwargs)
+        axes[1].set_xscale('log')
+        axes[1].set_xlabel('Lambda (Weight Protection)')
+
+    if 'loss_type' in master_df.columns:
+        dodge_val = 0.4 if master_df['Model'].nunique() > 1 else False
+
+        sns.pointplot(
+            data=master_df, 
+            x='loss_type', 
+            y='Target_Accuracy_After', 
+            hue='Model', 
+            palette=palette, 
+            dodge=dodge_val, 
+            linestyles="", 
+            markers='D', 
+            errorbar=('ci', 95), 
+            ax=axes[2]
+        )
+        axes[2].set_xlabel('SA Loss Type')
+        axes[2].legend(title='Model', loc='best', frameon=False)
+
+    if 'lr' in master_df.columns:
+        sns.lineplot(data=master_df, x='lr', y='Target_Accuracy_After', ax=axes[3], **line_kwargs)
+        axes[3].set_xscale('log')
+        axes[3].set_xlabel('Learning Rate')
+
+    for ax in axes:
+        if ax == axes[0] or ax == axes[2]:
+            ax.set_ylabel('Average Target Accuracy After SA')
+        ax.grid(True, alpha=0.3, linestyle='--')
+
+
+    plt.title('Global Hyperparameter Trends\n')
+    plt.tight_layout()
+    save_path = 'evaluation_data/plots/trends_combined_master.png'
+    plt.savefig(save_path, bbox_inches='tight')
 
 
 def heatmap_plot(csv_path=FINAL_BEST_CSV, target_class=TARGET_CLASS):
@@ -297,7 +377,8 @@ def plot_all(target_classes=range(10)):
 if __name__ == "__main__":
     #plot_all(range(10))
     #stability_boxplot()
-    # for c in range(10):
-    #     res = f'evaluation_data/results_target_{c}.csv'
-    #     parameter_trend_plot(res, c)
-    master_target_accuracy_heatmap()
+    for c in range(10):
+        res = f'evaluation_data/results_target_{c}.csv'
+        parameter_trend_plot(res, c)
+    # master_target_accuracy_heatmap()
+    combined_parameter_trend_plot()
