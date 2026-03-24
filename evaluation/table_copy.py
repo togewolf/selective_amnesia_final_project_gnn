@@ -44,9 +44,9 @@ def all_acc_table():
     models = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
     results = {m: {} for m in models}
 
+    # 1. Collect Data
     for c in range(10):
         csv_path = f"evaluation_data/final_results_target_{c}.csv"
-        
         if not os.path.exists(csv_path):
             for m in models:
                 results[m][c] = ("-", "-")
@@ -55,10 +55,25 @@ def all_acc_table():
         df = pd.read_csv(csv_path)
         for _, row in df.iterrows():
             m = row['Model']
-            acc = row['Final_Target_Acc']
-            drop = row['Final_Retained_Drop']
-            results[m][c] = (acc, drop)
+            if m in results:
+                acc = row['Final_Target_Acc']
+                drop = row['Final_Retained_Drop']
+                results[m][c] = (acc, drop)
 
+    # 2. Calculate Means and Find the "Best" Row
+    model_stats = []
+    for model in models:
+        valid_accs = [results[model][c][0] for c in range(10) if results[model][c] != ("-", "-")]
+        valid_drops = [results[model][c][1] for c in range(10) if results[model][c] != ("-", "-")]
+        
+        mean_acc = np.mean(valid_accs) if valid_accs else float('inf')
+        mean_drop = np.mean(valid_drops) if valid_drops else float('inf')
+        model_stats.append((model, mean_acc, mean_drop))
+
+    # Identify the best (minimum) mean target accuracy
+    min_mean = min(s[1] for s in model_stats)
+
+    # 3. Print Typst Figure
     print("#figure(")
     print("  table(")
     print("    columns: (auto, " + ", ".join(["1fr"] * 10) + ", 1.2fr),")
@@ -69,30 +84,40 @@ def all_acc_table():
     print("    align(left)[*Model*], " + ", ".join(headers) + ", [*Mean*],")
     print("    table.hline(y: 1, stroke: 0.8pt),")
     
-    for i, model in enumerate(models):
-        row_str = f"    align(left)[{model}], "
-        cols = []
-        valid_accs = []
-        valid_drops = []
+    for model, mean_acc, mean_drop in model_stats:
+        # Determine if this row should be highlighted (Red + Bold)
+        is_best = (mean_acc == min_mean)
         
+        row_cells = []
+        # Format the Model Name cell
+        model_cell = f"[{model}]" if not is_best else f"[#text(fill: red)[*{model}*]]"
+        row_str = f"    align(left){model_cell}, "
+        
+        # Format T0-T9 cells
         for c in range(10):
-            val = results.get(model, {}).get(c, ("-", "-"))
+            val = results[model].get(c, ("-", "-"))
             if val == ("-", "-"):
-                cols.append("[-]")
+                cell_content = "[-]"
             else:
                 acc, drop = val
-                cols.append(f"[{acc:.2f}\n({drop:+.2f})]")
-                valid_accs.append(acc)
-                valid_drops.append(drop)
+                content = f"{acc:.2f}\\ ({drop:+.2f})"
+                if is_best:
+                    cell_content = f"[#text(fill: red)[*{content}*]]"
+                else:
+                    cell_content = f"[{content}]"
+            row_cells.append(cell_content)
         
-        if valid_accs and valid_drops:
-            mean_acc = np.mean(valid_accs)
-            mean_drop = np.mean(valid_drops)
-            cols.append(f"[*{(mean_acc):.2f}*\n*({(mean_drop):+.2f})*]")
+        # Format Mean cell
+        if mean_acc != float('inf'):
+            mean_content = f"{mean_acc:.2f}\\ ({mean_drop:+.2f})"
+            if is_best:
+                row_cells.append(f"[#text(fill: red)[*{mean_content}*]]")
+            else:
+                row_cells.append(f"[*{(mean_acc):.2f}*\n*({(mean_drop):+.2f})*]")
         else:
-            cols.append("[-]")
+            row_cells.append("[-]")
             
-        row_str += ", ".join(cols) + ","
+        row_str += ", ".join(row_cells) + ","
         print(row_str)
 
     print(f"    table.hline(y: {len(models) + 1}, stroke: 1.5pt)")

@@ -89,7 +89,7 @@ def parameter_trend_plot(results_csv=RESULTS_CSV, target_class=TARGET_CLASS):
 
 
     plt.tight_layout()
-    plt.savefig(f'evaluation_data/plots/trends_{TARGET_CLASS}_grid.png', bbox_inches='tight')
+    plt.savefig(f'evaluation_data/plots/trends_{target_class}_grid.png', bbox_inches='tight')
 
 
 
@@ -244,6 +244,34 @@ def entanglement_matrix(model_name='GAN'):
     save_path = f'evaluation_data/plots/entanglement_matrix_{model_name}.png'
     plt.savefig(save_path, dpi=300)
 
+def master_target_accuracy_heatmap():
+    os.makedirs('evaluation_data/plots', exist_ok=True)
+    df = get_best_runs_across_all_targets()
+    
+    if df.empty:
+        return
+        
+    pivot_df = df.pivot(index='Model', columns='Target_Class', values='Target_Accuracy_After')
+    
+    pivot_df = pivot_df.reindex(["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"])
+    
+    plt.figure(figsize=(10, 4))
+    
+    sns.heatmap(pivot_df, 
+                annot=True, 
+                cmap='RdYlGn_r', 
+                vmin=0.0, vmax=1.0,
+                fmt=".2f", 
+                linewidths=.5,
+                cbar_kws={'label': r'Target Accuracy'})
+                
+    plt.title('Unlearning Success: Final Target Accuracy', pad=15)
+    plt.ylabel('Model')
+    plt.xlabel('Target Class')
+    
+    plt.tight_layout()
+    save_path = 'evaluation_data/plots/master_target_accuracy_heatmap.png'
+    plt.savefig(save_path, dpi=300)
 
 def plot_all(target_classes=range(10)):
     models = ["GAN", "Autoregressive", "VAE", "RectifiedFlow", "NVP"]
@@ -265,6 +293,11 @@ def plot_all(target_classes=range(10)):
     for model in models:
         entanglement_matrix(model_name=model)
 
+
 if __name__ == "__main__":
     #plot_all(range(10))
-    stability_boxplot()
+    #stability_boxplot()
+    # for c in range(10):
+    #     res = f'evaluation_data/results_target_{c}.csv'
+    #     parameter_trend_plot(res, c)
+    master_target_accuracy_heatmap()
