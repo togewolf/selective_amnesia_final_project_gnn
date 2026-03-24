@@ -31,12 +31,11 @@ def main():
 
     # SA
     logging.info(f"Start")
-    run_all_target_classes(["GAN"],target_classes=range(2)) # had to repeat because accidentally mapped 0-> 8 (too similar)
-    run_all_target_classes(ACTIVE_MODELS,target_classes=range(2,10)) # continue after fix with remaining
-    run_best(ACTIVE_MODELS, target_classes=range(10)) # get final SA models and sample imgs
-    plot_all(target_classes=range(10)) # plot for paper
+    run_all_target_classes(["VAE", "RectifiedFlow", "Autoregressive", "NVP"],target_classes=range(2))
+    #run_all_target_classes(ACTIVE_MODELS,target_classes=range(2,10))
+    #run_best(ACTIVE_MODELS, target_classes=range(10))
+    plot_all(target_classes=range(10))
     logging.info(f"Finished.")
-
 
 if __name__ == "__main__":
     main()
