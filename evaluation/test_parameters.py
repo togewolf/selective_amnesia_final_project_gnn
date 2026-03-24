@@ -304,24 +304,24 @@ def run_all_target_classes(active_models, target_classes=range(0,9)):
 def run_specific_params(params, target_classes=range(0,9)):
     logging.info(f"Start targeted parameter test.")
 
-    active_models = [key for key in params]
+    active_models = list(set([key for key in params]))
 
     for c in target_classes:
         logging.info(f"Start class {c}.")
         new_best = run_optimization(target_class=c, active_models=active_models, custom_params=params)
+    
+        if len(new_best) != 0:
+            logging.info(f"Maybe run new best for {new_best} class {c}.")
 
+# WARNING: NEVER RUN THE SAME TARGET CLASSES IN PARALLEL. CSV WILL BE OVERWRITTEN AND DATA LOST. would need script editing.
 if __name__ == "__main__":
-
     params = {
         "GAN": {
-        "loss_type": ["l1"], 
-        "lr": [5e-4, 1e-3],
-        "gamma": [0.001],
-        "lmbda": ["-"]
-        },
+        "loss_type": "l1", 
+        "lr": 1e-4,
+        "gamma": 0.001,
+        "lmbda": "-"
+        }
     }
-    target_classes = 0
-
+    target_classes = range(0,1)
     new_best = run_specific_params(params, target_classes)
-    if len(new_best) != 0:
-        logging.info(f"Maybe run new best for {new_best}")
