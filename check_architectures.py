@@ -84,16 +84,10 @@ def plot_example_grids(overview_images, save_path=os.path.join(EVAL_DIR, "base_m
     plt.savefig(save_path, bbox_inches='tight', dpi=150)
     plt.close()
 
-def pick_best_and_save():
+def pick_best_and_save(active_models = ACTIVE_MODELS):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(FINAL_DIR, exist_ok=True)
     os.makedirs(EVAL_DIR, exist_ok=True)
-
-    # clean old best weights
-    # filelist = [ f for f in os.listdir(FINAL_DIR) if f.endswith(".pth") ]
-    # for f in filelist:
-    #     if f != "oracle.pth":
-    #         os.remove(os.path.join(FINAL_DIR, f))
 
     if not os.path.exists("models/weights/oracle.pth"):
         raise LookupError("No oracle.pth, run train_oracle.py first.")
@@ -103,7 +97,7 @@ def pick_best_and_save():
     
     overview_images = {}
 
-    for name in ACTIVE_MODELS:
+    for name in active_models:
         variant_files = glob.glob(os.path.join(CACHE_DIR, f"{name.lower()}_v*.pth"))
         
         best_score = -1.0

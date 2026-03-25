@@ -23,19 +23,20 @@ def main():
     # print(torch.version.cuda)
     # print(torch.cuda.is_available())
 
-    # base models
-    # training()
-    # pick_best_and_save()
-
     ACTIVE_MODELS = ["VAE", "GAN", "RectifiedFlow", "Autoregressive", "NVP"]
 
-    # SA
     logging.info(f"Start")
-    run_all_target_classes(["VAE", "RectifiedFlow", "Autoregressive", "NVP"],target_classes=range(2))
+    # base models
+    training(["GAN"])
+    pick_best_and_save(["GAN"])
+
+    # SA
+    #logging.info(f"Start SA")
+    #run_all_target_classes(["VAE", "RectifiedFlow", "Autoregressive", "NVP"],target_classes=range(2))
     #run_all_target_classes(ACTIVE_MODELS,target_classes=range(2,10))
     #run_best(ACTIVE_MODELS, target_classes=range(10))
-    plot_all(target_classes=range(10))
-    logging.info(f"Finished.")
+    #plot_all(target_classes=range(10))
+    #logging.info(f"Finished.")
 
 if __name__ == "__main__":
     main()

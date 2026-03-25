@@ -13,26 +13,26 @@ from models.autoregressive.autoregressive_model import ConditionalMADE
 
 CACHE_DIR = "models/weights/cache"
 
-VARIANTS = [1]#,2,3]
+VARIANTS = [0,1,2]
 ACTIVE_MODELS = ["GAN"]
 # "VAE","GAN","RectifiedFlow", "Autoregressive", "NVP"
 
-# TRAIN_EPOCHS = {
-#     "VAE": 50, 
-#     "GAN": 200,
-#     "RectifiedFlow": 300,
-#     "Autoregressive": 300,
-#     "NVP": 50
-# }
+TRAIN_EPOCHS = {
+    "VAE": 50, 
+    "GAN": 200,
+    "RectifiedFlow": 300,
+    "Autoregressive": 300,
+    "NVP": 50
+}
 
 # for test
-TRAIN_EPOCHS = {
-    "VAE": 5, 
-    "GAN": 5,
-    "RectifiedFlow": 5,
-    "Autoregressive": 5,
-    "NVP": 5
-}
+# TRAIN_EPOCHS = {
+#     "VAE": 5, 
+#     "GAN": 5,
+#     "RectifiedFlow": 5,
+#     "Autoregressive": 5,
+#     "NVP": 5
+# }
 
 def get_model_instance(name, config):
     if name == "VAE": return ConditionalVAE(**config)
@@ -89,7 +89,7 @@ def train_model(model, dataloader, epochs, device, patience=15, min_delta=1e-4):
 
     return model
 
-def run():
+def run(active_models=ACTIVE_MODELS):
     device = get_device()
 
     if device.type == "cuda":
@@ -147,7 +147,7 @@ def run():
         drop_last=(device.type == "cuda")
     )
 
-    for name in ACTIVE_MODELS:
+    for name in active_models:
         config = ARCHITECTURE_CONFIGS[name]
         epochs = TRAIN_EPOCHS.get(name, 30)
         
