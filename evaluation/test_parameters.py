@@ -122,14 +122,20 @@ def run_optimization(target_class=TARGET_CLASS, active_models=ACTIVE_MODELS, cus
     normal_csv = f"evaluation_data/results_target_{target_class}.csv"
     final_csv = f"evaluation_data/final_results_target_{target_class}.csv"
     
-    if os.path.exists(normal_csv):
-        normal_df = pd.read_csv(normal_csv)
-    else:
+    try:
+        if os.path.exists(normal_csv) and os.path.getsize(normal_csv) > 0:
+            normal_df = pd.read_csv(normal_csv)
+        else:
+            normal_df = pd.DataFrame()
+    except pd.errors.EmptyDataError:
         normal_df = pd.DataFrame()
 
-    if os.path.exists(final_csv):
-        final_df = pd.read_csv(final_csv)
-    else:
+    try:
+        if os.path.exists(final_csv) and os.path.getsize(final_csv) > 0:
+            final_df = pd.read_csv(final_csv)
+        else:
+            final_df = pd.DataFrame()
+    except pd.errors.EmptyDataError:
         final_df = pd.DataFrame()
     
     registry_path = f"models/weights/optimized_model_registry_{target_class}.json"

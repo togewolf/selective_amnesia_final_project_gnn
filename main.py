@@ -27,16 +27,15 @@ def main():
 
     logging.info(f"Start")
     # base models
-    training(["GAN"])
-    pick_best_and_save(["GAN"])
+    # training(["GAN"])
+    # pick_best_and_save(["GAN"])
 
     # SA
-    #logging.info(f"Start SA")
-    #run_all_target_classes(["VAE", "RectifiedFlow", "Autoregressive", "NVP"],target_classes=range(2))
-    #run_all_target_classes(ACTIVE_MODELS,target_classes=range(2,10))
-    #run_best(ACTIVE_MODELS, target_classes=range(10))
+    logging.info(f"Start SA")
+    run_all_target_classes(["GAN"],target_classes=range(10))
+    run_best(["GAN"], target_classes=range(10))
     #plot_all(target_classes=range(10))
-    #logging.info(f"Finished.")
+    logging.info(f"Finished.")
 
 if __name__ == "__main__":
     main()
