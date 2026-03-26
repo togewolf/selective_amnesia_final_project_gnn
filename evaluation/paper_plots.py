@@ -120,7 +120,8 @@ def combined_parameter_trend_plot():
         'markers': marker_map,
         'lw': 3,
         'alpha': 0.7,
-        'errorbar': ('ci', 95), 
+        'errorbar': ('ci', 95),
+        'err_kws': {'alpha': 0.08}
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
@@ -165,7 +166,6 @@ def combined_parameter_trend_plot():
         if ax == axes[0] or ax == axes[2]:
             ax.set_ylabel('Average Target Accuracy After SA')
         ax.grid(True, alpha=0.3, linestyle='--')
-
 
     plt.title('Global Hyperparameter Trends\n')
     plt.tight_layout()
@@ -311,12 +311,11 @@ def stability_boxplot():
     master_df = get_best_runs_across_all_targets()
     
     if master_df.empty:
-        print("No data found to plot. Check if final_results_target_X.csv files exist.")
         return
 
-    plt.figure(figsize=(10, 6))
-    
+    fig, ax_main = plt.subplots(figsize=(10, 6))
     sns.boxplot(
+        ax=ax_main,
         data=master_df, 
         x='Model', 
         y='Target_Accuracy_After', 
@@ -328,26 +327,69 @@ def stability_boxplot():
     )
     
     sns.swarmplot(
+        ax=ax_main,
         data=master_df, 
         x='Model', 
         y='Target_Accuracy_After', 
         color=".5", 
         size=6, 
         alpha=0.7,
+        zorder=1
     )
-    datapoints_handle = mlines.Line2D([], [], color='.5', marker='o', linestyle='None',markersize=6, alpha=0.7, label='Class Accuracy')
-    threshold_line = plt.axhline(0.05, ls='--', color='green', alpha=0.5, label='Forgetting Threshold')    
+    
+    ax_main.axhline(0.05, ls='--', color='green', alpha=0.5)    
 
-    plt.legend(handles=[datapoints_handle, threshold_line], 
+    ax_inset = ax_main.inset_axes([0.22, 0.35, 0.55, 0.5]) 
+    
+    sns.boxplot(
+        ax=ax_inset,
+        data=master_df, 
+        x='Model', 
+        y='Target_Accuracy_After', 
+        hue='Model', 
+        palette='plasma', 
+        width=0.6, 
+        fliersize=0,
+        legend=False
+    )
+    
+    sns.swarmplot(
+        ax=ax_inset,
+        data=master_df, 
+        x='Model', 
+        y='Target_Accuracy_After', 
+        color=".5", 
+        size=5,
+        alpha=0.8,
+        zorder=1
+    )
+    
+    ax_inset.axhline(0.05, ls='--', color='green', alpha=0.5) 
+    
+    ax_inset.set_ylim(-0.01, 0.18)
+    ax_inset.set_xlabel('') 
+    ax_inset.set_ylabel('')
+    ax_inset.grid(axis='y', linestyle=':', alpha=0.5)
+    
+    ax_main.indicate_inset_zoom(ax_inset, edgecolor="black", alpha=0.2)
+
+    datapoints_handle = mlines.Line2D([], [], color='.5', marker='o', linestyle='None', markersize=6, alpha=0.7, label='Class Accuracy')
+    threshold_line = mlines.Line2D([], [], color='green', linestyle='--', alpha=0.5, label='Forgetting Threshold')    
+
+    ax_main.legend(handles=[datapoints_handle, threshold_line], 
             loc='upper right', 
             frameon=True,
             fontsize=12)
 
-    plt.title('Unlearning Stability Across All MNIST Classes', pad=15)
-    plt.ylabel('Target Class Accuracy After SA')
-    plt.grid(axis='y', linestyle='--', alpha=0.3)
+    ax_main.set_title('Unlearning Stability Across All MNIST Classes', pad=15)
+    ax_main.set_ylabel('Target Class Accuracy After SA')
+    ax_main.set_xlabel('Model')
+    ax_main.grid(axis='y', linestyle='--', alpha=0.3)
+    
     plt.tight_layout()
-    plt.savefig('evaluation_data/plots/stability_boxplot_master.png', dpi=300)
+    save_path = 'evaluation_data/plots/stability_boxplot_master.png'
+    plt.savefig(save_path, dpi=300)
+    plt.close()
 
 def entanglement_matrix(model_name='GAN'):
 
@@ -454,9 +496,9 @@ def plot_all(target_classes=range(10)):
 if __name__ == "__main__":
     #plot_all(range(10))
     stability_boxplot()
-    for c in range(10):
-        res = f'evaluation_data/results_target_{c}.csv'
-        parameter_trend_plot(res, c)
-    master_target_accuracy_heatmap()
+    # for c in range(10):
+    #     res = f'evaluation_data/results_target_{c}.csv'
+    #     parameter_trend_plot(res, c)
+    # master_target_accuracy_heatmap()
     combined_parameter_trend_plot()
-    plot_optimization_traps()
+    # plot_optimization_traps()

@@ -167,4 +167,5 @@ def run_best(active_models, target_classes=range(0,9)):
 if __name__ == "__main__":
     # run_best()
     #generate_final_models(0, ACTIVE_MODELS)
-    get_SA_sample(0)
+    for c in range(10):
+        get_SA_sample(c)
