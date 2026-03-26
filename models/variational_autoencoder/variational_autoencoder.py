@@ -90,7 +90,8 @@ class ConditionalVAE(nn.Module):
             loss_recon_f = F.l1_loss(torch.sigmoid(recon_forget_logits), target_f_flat, reduction="sum")
             
         loss_kl_f = -0.5 * torch.sum(1 + log_var_f - mu_f.pow(2) - log_var_f.exp())
-        loss = loss_recon_f + loss_kl_f
+        beta = 0.1  # prevents collapse to constant outputs (Result: grey squares instead of black squares, hopefully)
+        loss = loss_recon_f + beta * loss_kl_f
 
         # --- 2. Contrastive Phase (Generative Replay) ---
         valid_classes = [c for c in range(self.class_size) if c != target_class]
