@@ -213,6 +213,7 @@ def plot_optimization_traps():
     edge_cases = [
         {"model": "VAE", "target": 4},
         {"model": "RectifiedFlow", "target": 8},
+        {"model": "Autoregressive", "target": 8},
         {"model": "RectifiedFlow", "target": 0} # as guideline
     ]
     
@@ -493,12 +494,13 @@ def plot_all(target_classes=range(10)):
         entanglement_matrix(model_name=model)
 
 
+
 if __name__ == "__main__":
     #plot_all(range(10))
-    stability_boxplot()
+    #stability_boxplot()
     # for c in range(10):
     #     res = f'evaluation_data/results_target_{c}.csv'
     #     parameter_trend_plot(res, c)
     # master_target_accuracy_heatmap()
-    combined_parameter_trend_plot()
-    # plot_optimization_traps()
+    #combined_parameter_trend_plot()
+    plot_optimization_traps()
