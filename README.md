@@ -11,7 +11,7 @@ By **Lela Eigenrauch**, **Mehdy Shinwari**, and **Thomas Wolf**
 This project verifies and extends the [Selective Amnesia (SA)](https://arxiv.org/abs/2305.10120) framework by Heng & Soh beyond its original scope (VAEs and diffusion models) to five structurally diverse conditional generative architectures:
 
 | Architecture | Type | Latent Bottleneck | 
-|---|---|---|---|
+|---|---|---|
 | **Conditional VAE** | Latent variable model | Yes (20-dim) |
 | **Conditional GAN** | Adversarial model | No | Implicit |
 | **Hybrid RealNVP** | Normalizing Flow | Yes (20-dim, via frozen VAE) |
