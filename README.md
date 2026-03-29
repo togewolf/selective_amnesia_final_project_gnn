@@ -10,13 +10,13 @@ By **Lela Eigenrauch**, **Mehdy Shinwari**, and **Thomas Wolf**
 
 This project verifies and extends the [Selective Amnesia (SA)](https://arxiv.org/abs/2305.10120) framework by Heng & Soh beyond its original scope (VAEs and diffusion models) to five structurally diverse conditional generative architectures:
 
-| Architecture | Type | Latent Bottleneck | Likelihood |
+| Architecture | Type | Latent Bottleneck | 
 |---|---|---|---|
-| **Conditional VAE** | Latent variable model | Yes (20-dim) | ELBO bound |
+| **Conditional VAE** | Latent variable model | Yes (20-dim) |
 | **Conditional GAN** | Adversarial model | No | Implicit |
-| **Hybrid RealNVP** | Normalizing Flow | Yes (20-dim, via frozen VAE) | Exact |
-| **Conditional Rectified Flow** | ODE-based flow | No | N/A (velocity matching) |
-| **Conditional MADE** | Autoregressive model | No | Exact |
+| **Hybrid RealNVP** | Normalizing Flow | Yes (20-dim, via frozen VAE) |
+| **Conditional Rectified Flow** | ODE-based flow | No | 
+| **Conditional MADE** | Autoregressive model | No |
 
 All models are trained on the MNIST dataset. The SA framework induces selective forgetting of individual digit classes while preserving generation quality for the remaining nine classes.
 
