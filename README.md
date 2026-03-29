@@ -35,7 +35,7 @@ All models are trained on the MNIST dataset. The SA framework induces selective 
 git clone https://github.com/togewolf/selective_amnesia_final_project_gnn.git
 cd selective_amnesia_final_project_gnn
 
-# Pretrained Models
+# Pretrained Models, download manually for faster download speed 
 wget "https://nx29079.your-storageshare.de/s/mMHN4yEskmRTyEz/download" -O gnn_weights.zip
 unzip gnn_weights.zip -d "GNN weights"
 rm gnn_weights.zip
