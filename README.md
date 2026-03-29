@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
 ### Evaluating Pretrained Models
 
-All 50 pretrained SA models (5 architectures, 10 target digits) are included in `GNN weights/after_SA/`. Use the demo script to load any model, generate samples and compare Oracle accuracy before and after forgetting:
+All 50 pretrained SA models (5 architectures, 10 target digits) are available on https://nx29079.your-storageshare.de/s/mMHN4yEskmRTyEz/download. Use the demo script to load any model, generate samples and compare Oracle accuracy before and after forgetting:
 
 ```bash
 # Interactive mode: choose architecture and digit from a menu
